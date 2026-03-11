@@ -172,7 +172,8 @@ The application MUST be stateless and horizontally scalable:
 | Output | HTML5 + inline CSS | Self-contained, WCAG-compliant documents |
 | WCAG Validation | axe-core | Automated accessibility testing |
 | Frontend | React / Next.js | Component-based UI with SSR capability |
-| UI Design | frontend-design skill | Production-grade, distinctive aesthetics |
+| UI Framework | Bootstrap 5 | Consistent with NC Digital Commons |
+| UI Design | NCDIT Digital Commons + frontend-design skill | NC.gov brand compliance with production-grade polish |
 | DOCX Parsing | python-docx (planned) | Word document extraction |
 | PPTX Parsing | python-pptx (planned) | PowerPoint extraction |
 

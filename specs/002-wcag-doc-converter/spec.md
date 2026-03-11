@@ -319,9 +319,22 @@ renders correctly in the browser, and download the output package.
   keyboard navigable, screen reader compatible, proper contrast ratios.
 - **FR-024**: Web interface MUST validate file types and sizes before upload,
   rejecting unsupported formats with clear error messages.
-- **FR-025**: Web interface MUST use a distinctive, professional design
-  befitting NC state government services — avoiding generic or template-like
-  aesthetics. Apply the frontend-design skill for production-grade UI quality.
+- **FR-025**: Web interface MUST follow the **NCDIT Digital Commons** design
+  system and NC.gov brand guidelines:
+  - Use the NC.gov official color palette (primary navy #003366, action blue
+    #1e79c8, with accessible accent colors from the Digital Commons palettes)
+  - Typography: Brandon Grotesque Bold / Century Gothic Bold for headings,
+    Georgia Regular for body text
+  - Include the NC.gov official government banner ("An official website of
+    the State of North Carolina") with the "How you know" expandable trust
+    indicator
+  - Include the NC.gov logo header and standard footer layout
+  - Built on Bootstrap 5 consistent with Digital Commons component library
+  - Follow Digital Commons layout patterns for navigation, cards, forms,
+    and buttons
+  - All components MUST meet WCAG 2.1 AA contrast and interaction standards
+    per the NC Digital Accessibility and Usability Standard v1.1
+  - Mobile-first, responsive design across all device sizes
 
 ### Key Entities
 
@@ -381,8 +394,11 @@ renders correctly in the browser, and download the output package.
 - The April 2026 DOJ deadline is the hard constraint — P1 stories (PDF
   conversion + web upload UI) MUST ship first, with P2/P3 (DOCX, PPTX,
   batch dashboard, preview/download) following as timeline permits.
-- The web interface will be built with React/Next.js, deployed as a static
-  web app or alongside the Azure Functions backend.
-- The frontend-design skill (anthropics/skills/frontend-design) will be
-  applied during implementation for distinctive, production-grade UI quality
-  that avoids generic AI aesthetics.
+- The web interface will be built with React/Next.js on Bootstrap 5,
+  following the NCDIT Digital Commons design system for NC.gov brand
+  consistency. The frontend-design skill will be applied to elevate
+  production quality within the Digital Commons framework.
+- NCDIT Digital Commons color palettes, typography (Brandon Grotesque /
+  Century Gothic for headings, Georgia for body), and component patterns
+  are the authoritative style reference. The official government banner,
+  NC.gov logo, and standard footer layout are required.
