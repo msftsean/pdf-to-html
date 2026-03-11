@@ -3,7 +3,8 @@
 # Verifies that the development environment is correctly set up
 # and the conversion pipeline works end-to-end.
 
-set -e
+# Get the project root (parent directory of scripts/)
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Color codes
 PASS="✅"
@@ -29,7 +30,7 @@ check() {
         ((pass_count++))
         results+=("✓ $name")
     else
-        if [ "$critical" == "true" ]; then
+        if [ "$critical" = "true" ]; then
             echo " $FAIL"
             ((fail_count++))
             results+=("✗ $name")
@@ -42,23 +43,43 @@ check() {
 }
 
 # Helper to check version
-version_check() {
+check_version() {
     local name="$1"
-    local cmd="$2"
+    local tool="$2"
     local min_version="$3"
     
     printf "%-55s" "Checking $name ($min_version+)..."
     
-    if eval "$cmd" > /dev/null 2>&1; then
-        local version=$(eval "$cmd" 2>&1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
-        echo " $PASS ($version)"
-        ((pass_count++))
-        results+=("✓ $name: $version")
-    else
+    if ! command -v "$tool" &> /dev/null; then
         echo " $FAIL"
         ((fail_count++))
         results+=("✗ $name not found")
+        return
     fi
+    
+    # Extract version based on tool
+    local version=""
+    case "$tool" in
+        python3)
+            version=$("$tool" --version 2>&1 | awk '{print $2}' | cut -d. -f1-2)
+            ;;
+        node)
+            version=$("$tool" --version 2>&1 | sed 's/^v//' | cut -d. -f1-2)
+            ;;
+        npm)
+            version=$("$tool" --version 2>&1 | cut -d. -f1-2)
+            ;;
+        func)
+            version=$("$tool" --version 2>&1 | cut -d. -f1-2)
+            ;;
+        *)
+            version="installed"
+            ;;
+    esac
+    
+    echo " $PASS ($version)"
+    ((pass_count++))
+    results+=("✓ $name: $version")
 }
 
 echo ""
@@ -69,10 +90,22 @@ echo ""
 # ============================================================================
 echo "📋 PREREQUISITES"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-version_check "Python" "python3 --version" "3.12"
-version_check "Node.js" "node --version" "20"
-version_check "npm" "npm --version" "9"
-version_check "Azure Functions Core Tools" "func --version" "4"
+check_version "Python" "python3" "3.12"
+check_version "Node.js" "node" "20"
+check_version "npm" "npm" "9"
+
+# Azure Functions Core Tools is optional (can use docker or remote)
+printf "%-55s" "Checking Azure Functions Core Tools (4+)..."
+if command -v func &> /dev/null; then
+    local version=$(func --version 2>&1 | cut -d. -f1-2)
+    echo " $PASS ($version)"
+    ((pass_count++))
+    results+=("✓ Azure Functions Core Tools: $version")
+else
+    echo " $WARN (optional - can use remote backend)"
+    ((warn_count++))
+    results+=("⚠ Azure Functions Core Tools not found (optional)")
+fi
 
 # ============================================================================
 echo ""
@@ -113,12 +146,13 @@ check "Frontend builds successfully" "cd /workspaces/pdf-to-html/frontend && npm
 echo ""
 echo "📋 PROJECT FILES"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-check "function_app.py exists" "test -f function_app.py" true
-check "html_builder.py exists" "test -f html_builder.py" true
-check "pdf_extractor.py exists" "test -f pdf_extractor.py" true
-check "ocr_service.py exists" "test -f ocr_service.py" true
-check "wcag_validator.py exists" "test -f wcag_validator.py" true
-check "status_service.py exists" "test -f status_service.py" true
+
+check "function_app.py exists" "test -f $PROJECT_ROOT/function_app.py" true
+check "html_builder.py exists" "test -f $PROJECT_ROOT/html_builder.py" true
+check "pdf_extractor.py exists" "test -f $PROJECT_ROOT/pdf_extractor.py" true
+check "ocr_service.py exists" "test -f $PROJECT_ROOT/ocr_service.py" true
+check "wcag_validator.py exists" "test -f $PROJECT_ROOT/wcag_validator.py" true
+check "status_service.py exists" "test -f $PROJECT_ROOT/status_service.py" true
 
 # ============================================================================
 echo ""

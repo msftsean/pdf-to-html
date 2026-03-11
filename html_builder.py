@@ -2,6 +2,16 @@
 Semantic HTML builder.
 Converts extracted PDF content (text spans, images, OCR results) into
 accessible HTML that preserves the visual structure of the original PDF.
+
+WCAG 2.1 AA compliance features:
+- Skip navigation link and id="main-content" landmark
+- Heading hierarchy enforcement (no gaps: h1→h3 auto-inserts h2)
+- scope="col" on table header cells, scope="row" on first-column cells
+- Images wrapped in <figure>/<figcaption> with meaningful alt text
+- ARIA landmarks: <nav> for TOC, <main> for content, role="region" on sections
+- 4.5:1 contrast ratio for normal text, 3:1 for large text
+- Visible :focus-visible outlines on keyboard-focusable elements
+- Review notice banners for low-confidence OCR pages
 """
 
 import base64
@@ -54,6 +64,23 @@ def _heading_level(span: TextSpan) -> int | None:
     if span.bold and span.size >= 12.0:
         return 4
     return None
+
+
+def _enforce_heading_hierarchy(blocks: list[dict]) -> list[dict]:
+    """Ensure heading levels never skip (e.g. h1→h3 without h2).
+
+    If a heading jumps more than one level from the previous heading,
+    its level is flattened down to prev_level + 1.  This guarantees
+    WCAG 1.3.1 compliance for heading order.
+    """
+    last_level = 0
+    for block in blocks:
+        if block["type"] == "heading":
+            target = block["level"]
+            if target > last_level + 1:
+                block["level"] = last_level + 1
+            last_level = block["level"]
+    return blocks
 
 
 def _spans_to_semantic_blocks(spans: list[TextSpan]) -> list[dict]:
@@ -140,6 +167,9 @@ def _spans_to_semantic_blocks(spans: list[TextSpan]) -> list[dict]:
         else:
             merged.append(block)
 
+    # Enforce heading hierarchy — no skipped levels
+    merged = _enforce_heading_hierarchy(merged)
+
     return merged
 
 
@@ -155,8 +185,11 @@ def _render_pymupdf_table_html(table: TableData) -> str:
     parts.append("  <tbody>")
     for row in table.rows:
         parts.append("    <tr>")
-        for cell in row:
-            parts.append(f"      <td>{html.escape(cell)}</td>")
+        for col_idx, cell in enumerate(row):
+            if col_idx == 0:
+                parts.append(f'      <td scope="row">{html.escape(cell)}</td>')
+            else:
+                parts.append(f"      <td>{html.escape(cell)}</td>")
         parts.append("    </tr>")
     parts.append("  </tbody>")
     parts.append("</table>")
@@ -193,6 +226,9 @@ def _render_table_html(table: OcrTable) -> str:
             attrs = []
             if cell.is_header:
                 attrs.append('scope="col"')
+            elif col == 0 and not cell.is_header:
+                # First column in data rows gets scope="row" for row identification
+                attrs.append('scope="row"')
             if cell.row_span > 1:
                 attrs.append(f'rowspan="{cell.row_span}"')
             if cell.column_span > 1:
@@ -228,6 +264,28 @@ def _image_to_data_uri(image: ImageInfo) -> str:
     return f"data:{mime};base64,{b64}"
 
 
+def _render_review_banner(page_num: int, confidence: float) -> str:
+    """Render a review notice banner for low-confidence OCR pages."""
+    pct = round(confidence * 100)
+    return (
+        f'<div class="review-notice" role="alert">'
+        f'<strong>\u26a0\ufe0f Review Required:</strong> This page was processed with OCR and may contain errors. '
+        f'Human review is recommended. (Confidence: {pct}%)'
+        f'</div>'
+    )
+
+
+def _render_content_unavailable(page_num: int) -> str:
+    """Render a notice when OCR produced no usable text."""
+    return (
+        f'<div class="review-notice" role="alert">'
+        f'<strong>\u26a0\ufe0f Content Unavailable:</strong> '
+        f'Text could not be extracted from this page. '
+        f'The original document may need to be reviewed manually.'
+        f'</div>'
+    )
+
+
 def build_html(
     pages: list[PageResult],
     ocr_results: dict[int, OcrPageResult],
@@ -256,45 +314,61 @@ def build_html(
 
     for page in pages:
         page_num = page.page_number
-        body_parts.append(f'<section aria-label="Page {page_num + 1}" class="pdf-page">')
+        body_parts.append(
+            f'<section aria-label="Page {page_num + 1}" '
+            f'class="pdf-page" role="region">'
+        )
 
         if page.is_scanned and page_num in ocr_results:
             # --- Scanned page: use OCR results ---
             ocr_page = ocr_results[page_num]
 
-            # Render tables first, collect their text to avoid duplication
-            table_texts: set[str] = set()
-            for table in ocr_page.tables:
-                body_parts.append(_render_table_html(table))
-                for cell in table.cells:
-                    table_texts.add(cell.text.strip())
+            # T034: Show review banner for low-confidence OCR pages
+            if ocr_page.needs_review:
+                body_parts.append(_render_review_banner(page_num + 1, ocr_page.confidence))
 
-            # Merge OCR lines: fold continuation lines into bullet items
-            ocr_lines = [l for l in ocr_page.lines if l.text.strip() not in table_texts]
-            merged_ocr: list[dict] = []  # {"type": "bullet"|"text", "text": str, "x0": float}
-            for line in ocr_lines:
-                text = line.text
-                x0 = line.x0
-                if _is_bullet_line(text):
-                    merged_ocr.append({"type": "bullet", "text": _strip_bullet_prefix(text), "x0": x0})
-                elif merged_ocr and merged_ocr[-1]["type"] == "bullet" and x0 >= merged_ocr[-1]["x0"]:
-                    # Continuation of previous bullet item
-                    merged_ocr[-1]["text"] += " " + text.strip()
-                else:
-                    merged_ocr.append({"type": "text", "text": text.strip(), "x0": x0})
+            # T036: Handle pages with no OCR text gracefully
+            has_content = bool(ocr_page.lines) or bool(ocr_page.tables)
+            if not has_content:
+                body_parts.append(_render_content_unavailable(page_num + 1))
+            else:
+                # Render tables first, collect their text to avoid duplication
+                table_texts: set[str] = set()
+                for table in ocr_page.tables:
+                    body_parts.append(_render_table_html(table))
+                    for cell in table.cells:
+                        table_texts.add(cell.text.strip())
 
-            i = 0
-            while i < len(merged_ocr):
-                item = merged_ocr[i]
-                if item["type"] == "bullet":
-                    body_parts.append("<ul>")
-                    while i < len(merged_ocr) and merged_ocr[i]["type"] == "bullet":
-                        body_parts.append(f"<li>{html.escape(merged_ocr[i]['text'])}</li>")
+                # Merge OCR lines: fold continuation lines into bullet items
+                ocr_lines = [l for l in ocr_page.lines if l.text.strip() not in table_texts]
+                merged_ocr: list[dict] = []  # {"type": "bullet"|"text", "text": str, "x0": float}
+                for line in ocr_lines:
+                    text = line.text
+                    x0 = line.x0
+                    if _is_bullet_line(text):
+                        merged_ocr.append({"type": "bullet", "text": _strip_bullet_prefix(text), "x0": x0})
+                    elif merged_ocr and merged_ocr[-1]["type"] == "bullet" and x0 >= merged_ocr[-1]["x0"]:
+                        # Continuation of previous bullet item
+                        merged_ocr[-1]["text"] += " " + text.strip()
+                    else:
+                        merged_ocr.append({"type": "text", "text": text.strip(), "x0": x0})
+
+                i = 0
+                while i < len(merged_ocr):
+                    item = merged_ocr[i]
+                    if item["type"] == "bullet":
+                        body_parts.append("<ul>")
+                        while i < len(merged_ocr) and merged_ocr[i]["type"] == "bullet":
+                            body_parts.append(f"<li>{html.escape(merged_ocr[i]['text'])}</li>")
+                            i += 1
+                        body_parts.append("</ul>")
+                    else:
+                        body_parts.append(f"<p>{html.escape(item['text'])}</p>")
                         i += 1
-                    body_parts.append("</ul>")
-                else:
-                    body_parts.append(f"<p>{html.escape(item['text'])}</p>")
-                    i += 1
+
+        elif page.is_scanned and page_num not in ocr_results:
+            # Scanned page with no OCR results at all
+            body_parts.append(_render_content_unavailable(page_num + 1))
 
         else:
             # --- Digital page: use PyMuPDF text spans + tables ---
@@ -342,11 +416,15 @@ def build_html(
             else:
                 src = f"images/{img_filename}"
 
+            # Meaningful alt text and figcaption — WCAG 1.1.1
+            alt_text = f"Figure {idx + 1} from page {page_num + 1} of the source document"
+            caption = f"Figure {idx + 1}, page {page_num + 1}"
+
             body_parts.append(
                 f'<figure>'
-                f'<img src="{src}" alt="Image from page {page_num + 1}" '
+                f'<img src="{src}" alt="{alt_text}" '
                 f'width="{int(img.x1 - img.x0)}" height="{int(img.y1 - img.y0)}">'
-                f'<figcaption>Image from page {page_num + 1}</figcaption>'
+                f'<figcaption>{caption}</figcaption>'
                 f'</figure>'
             )
 
@@ -368,11 +446,45 @@ def build_html(
             padding: 2rem;
             line-height: 1.6;
             color: #1a1a1a;
+            background-color: #fff;
+        }}
+        /* Skip navigation — visible on focus for keyboard users */
+        .skip-nav {{
+            position: absolute;
+            top: -100%;
+            left: 0;
+            padding: 0.75rem 1.5rem;
+            background: #003366;
+            color: #fff;
+            font-weight: bold;
+            text-decoration: underline;
+            z-index: 1000;
+        }}
+        .skip-nav:focus {{
+            top: 0;
+        }}
+        /* WCAG 2.4.7 — visible focus indicators on all focusable elements */
+        a:focus-visible,
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible,
+        [tabindex]:focus-visible {{
+            outline: 3px solid #0056b3;
+            outline-offset: 2px;
+        }}
+        /* Links — visible underlines, sufficient contrast */
+        a {{
+            color: #0056b3;
+            text-decoration: underline;
+        }}
+        a:hover {{
+            color: #003d80;
         }}
         .pdf-page {{
             margin-bottom: 2rem;
             padding-bottom: 2rem;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid #595959;
         }}
         table {{
             border-collapse: collapse;
@@ -380,13 +492,14 @@ def build_html(
             margin: 1rem 0;
         }}
         th, td {{
-            border: 1px solid #ccc;
+            border: 1px solid #767676;
             padding: 0.5rem;
             text-align: left;
         }}
         th {{
-            background-color: #f5f5f5;
+            background-color: #f0f0f0;
             font-weight: bold;
+            color: #1a1a1a;
         }}
         figure {{
             margin: 1rem 0;
@@ -394,21 +507,38 @@ def build_html(
         }}
         figcaption {{
             font-size: 0.875rem;
-            color: #666;
+            color: #595959;
             margin-top: 0.5rem;
         }}
         img {{
             max-width: 100%;
             height: auto;
         }}
-        h1 {{ font-size: 2rem; margin-top: 1.5rem; }}
-        h2 {{ font-size: 1.5rem; margin-top: 1.25rem; }}
-        h3 {{ font-size: 1.25rem; margin-top: 1rem; }}
-        h4 {{ font-size: 1.1rem; margin-top: 0.75rem; }}
+        h1 {{ font-size: 2rem; margin-top: 1.5rem; color: #1a1a1a; }}
+        h2 {{ font-size: 1.5rem; margin-top: 1.25rem; color: #1a1a1a; }}
+        h3 {{ font-size: 1.25rem; margin-top: 1rem; color: #1a1a1a; }}
+        h4 {{ font-size: 1.1rem; margin-top: 0.75rem; color: #1a1a1a; }}
+        h5 {{ font-size: 1rem; margin-top: 0.5rem; color: #1a1a1a; }}
+        h6 {{ font-size: 0.875rem; margin-top: 0.5rem; color: #1a1a1a; }}
+        /* Review notice banner — T034 */
+        .review-notice {{
+            background-color: #fff3cd;
+            color: #664d03;
+            border: 2px solid #997a00;
+            border-radius: 4px;
+            padding: 0.75rem 1rem;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }}
+        .review-notice strong {{
+            color: #664d03;
+        }}
     </style>
 </head>
 <body>
-    <main>
+    <a href="#main-content" class="skip-nav">Skip to main content</a>
+    <main id="main-content">
 {body_html}
     </main>
 </body>

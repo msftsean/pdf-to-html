@@ -79,3 +79,78 @@ a:hover {
 .nc-bg-navy { background-color: var(--nc-navy); }
 .nc-text-action { color: var(--nc-action-blue); }
 .nc-bg-light { background-color: var(--nc-light-gray); }
+
+/* --------------------------------------------------------------------------
+   Hero Section — Landing Page
+   -------------------------------------------------------------------------- */
+
+.nc-hero {
+  background: linear-gradient(
+    135deg,
+    var(--nc-navy) 0%,
+    var(--nc-navy-dark) 100%
+  );
+  color: var(--nc-white);
+}
+
+.nc-hero__title {
+  font-family: var(--nc-font-heading);
+  font-weight: bold;
+  font-size: 2.5rem;
+  color: var(--nc-white);
+  line-height: 1.15;
+}
+
+.nc-hero__subtitle {
+  font-family: var(--nc-font-body);
+  font-size: 1.125rem;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+}
+
+@media (max-width: 575.98px) {
+  .nc-hero__title {
+    font-size: 1.75rem;
+  }
+  .nc-hero__subtitle {
+    font-size: 1rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Supported Formats Card
+   -------------------------------------------------------------------------- */
+
+.nc-format-card__icon {
+  font-size: 2.5rem;
+  display: block;
+}
+
+/* --------------------------------------------------------------------------
+   How It Works Steps
+   -------------------------------------------------------------------------- */
+
+.nc-step {
+  position: relative;
+}
+
+.nc-step__number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background-color: var(--nc-navy);
+  color: var(--nc-white);
+  font-family: var(--nc-font-heading);
+  font-weight: bold;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.nc-step__icon {
+  display: block;
+  font-size: 2rem;
+  margin-top: 0.25rem;
+}

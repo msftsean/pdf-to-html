@@ -17,6 +17,9 @@ from azure.identity import DefaultAzureCredential
 
 logger = logging.getLogger(__name__)
 
+# Pages with average OCR confidence below this threshold are flagged for review
+_CONFIDENCE_THRESHOLD = 0.70
+
 
 @dataclass
 class OcrSpan:
@@ -56,6 +59,8 @@ class OcrPageResult:
     height: float
     lines: list[OcrSpan] = field(default_factory=list)
     tables: list[OcrTable] = field(default_factory=list)
+    confidence: float = 1.0  # average OCR confidence for the page (0.0–1.0)
+    needs_review: bool = False  # True when confidence < threshold
 
 
 def _get_client() -> DocumentIntelligenceClient:
@@ -74,6 +79,30 @@ def _polygon_to_bbox(polygon: list[float]) -> tuple[float, float, float, float]:
     return min(xs), min(ys), max(xs), max(ys)
 
 
+def _calculate_page_confidence(di_page, line_spans: list[OcrSpan]) -> float:
+    """Calculate average OCR confidence for a page from word-level scores.
+
+    Uses Document Intelligence's word-level confidence when available,
+    falling back to line-level span confidences.
+    """
+    word_confidences: list[float] = []
+
+    # Primary source: word-level confidence from Document Intelligence
+    if hasattr(di_page, "words") and di_page.words:
+        for word in di_page.words:
+            if hasattr(word, "confidence") and word.confidence is not None:
+                word_confidences.append(word.confidence)
+
+    if word_confidences:
+        return sum(word_confidences) / len(word_confidences)
+
+    # Fallback: use line-level span confidences
+    if line_spans:
+        return sum(s.confidence for s in line_spans) / len(line_spans)
+
+    return 0.0
+
+
 def ocr_pdf_pages(pdf_data: bytes, page_numbers: list[int]) -> dict[int, OcrPageResult]:
     """
     Run OCR on specific pages of a PDF using Azure Document Intelligence.
@@ -84,6 +113,11 @@ def ocr_pdf_pages(pdf_data: bytes, page_numbers: list[int]) -> dict[int, OcrPage
 
     Returns:
         Dict mapping 0-based page number to OcrPageResult.
+
+    Per-page OCR confidence is calculated from word-level confidence scores
+    and pages with confidence below 0.70 are flagged with needs_review=True.
+    If OCR fails for a specific page, a partial result with confidence=0
+    and needs_review=True is returned so processing can continue.
     """
     if not page_numbers:
         return {}
@@ -93,13 +127,28 @@ def ocr_pdf_pages(pdf_data: bytes, page_numbers: list[int]) -> dict[int, OcrPage
     # Document Intelligence uses 1-based page numbers
     di_pages = ",".join(str(p + 1) for p in page_numbers)
 
-    poller = client.begin_analyze_document(
-        "prebuilt-layout",
-        AnalyzeDocumentRequest(bytes_source=pdf_data),
-        pages=di_pages,
-        features=[DocumentAnalysisFeature.QUERY_FIELDS],
-    )
-    result: AnalyzeResult = poller.result()
+    try:
+        poller = client.begin_analyze_document(
+            "prebuilt-layout",
+            AnalyzeDocumentRequest(bytes_source=pdf_data),
+            pages=di_pages,
+            features=[DocumentAnalysisFeature.QUERY_FIELDS],
+        )
+        result: AnalyzeResult = poller.result()
+    except Exception:
+        # T036: If the entire OCR call fails, return empty results with
+        # confidence=0 for every requested page so the pipeline continues.
+        logger.exception("Document Intelligence OCR failed for all pages")
+        results: dict[int, OcrPageResult] = {}
+        for pn in page_numbers:
+            results[pn] = OcrPageResult(
+                page_number=pn,
+                width=0,
+                height=0,
+                confidence=0.0,
+                needs_review=True,
+            )
+        return results
 
     results: dict[int, OcrPageResult] = {}
 
@@ -107,27 +156,86 @@ def ocr_pdf_pages(pdf_data: bytes, page_numbers: list[int]) -> dict[int, OcrPage
     if result.pages:
         for di_page in result.pages:
             page_num = di_page.page_number - 1  # convert to 0-based
-            if page_num not in [p for p in page_numbers]:
+            if page_num not in page_numbers:
                 continue
 
-            ocr_page = OcrPageResult(
-                page_number=page_num,
-                width=di_page.width or 0,
-                height=di_page.height or 0,
+            try:
+                ocr_page = OcrPageResult(
+                    page_number=page_num,
+                    width=di_page.width or 0,
+                    height=di_page.height or 0,
+                )
+
+                # Extract lines with positions and word-level confidence
+                if di_page.lines:
+                    for line in di_page.lines:
+                        if line.polygon and line.content:
+                            x0, y0, x1, y1 = _polygon_to_bbox(line.polygon)
+
+                            # Use word-level confidence average for the line
+                            # when available; fall back to 1.0
+                            line_confidence = 1.0
+                            if hasattr(di_page, "words") and di_page.words:
+                                # Find words that belong to this line by text matching
+                                line_word_confs = []
+                                for word in di_page.words:
+                                    if (hasattr(word, "confidence")
+                                            and word.confidence is not None
+                                            and word.content
+                                            and word.content in line.content):
+                                        line_word_confs.append(word.confidence)
+                                if line_word_confs:
+                                    line_confidence = sum(line_word_confs) / len(line_word_confs)
+
+                            ocr_page.lines.append(OcrSpan(
+                                text=line.content,
+                                x0=x0, y0=y0, x1=x1, y1=y1,
+                                confidence=line_confidence,
+                            ))
+
+                # Calculate page-level confidence and review flag
+                page_conf = _calculate_page_confidence(di_page, ocr_page.lines)
+                ocr_page.confidence = round(page_conf, 4)
+                ocr_page.needs_review = page_conf < _CONFIDENCE_THRESHOLD
+
+                if ocr_page.needs_review:
+                    logger.warning(
+                        "Page %d OCR confidence %.1f%% < %.0f%% — flagging for review",
+                        page_num + 1,
+                        page_conf * 100,
+                        _CONFIDENCE_THRESHOLD * 100,
+                    )
+
+                results[page_num] = ocr_page
+
+            except Exception:
+                # T036: Per-page failure — log and continue with a stub result
+                logger.exception(
+                    "OCR processing failed for page %d — returning empty result",
+                    page_num + 1,
+                )
+                results[page_num] = OcrPageResult(
+                    page_number=page_num,
+                    width=di_page.width or 0,
+                    height=di_page.height or 0,
+                    confidence=0.0,
+                    needs_review=True,
+                )
+
+    # Ensure pages that were requested but not returned by DI still get entries
+    for pn in page_numbers:
+        if pn not in results:
+            logger.warning(
+                "Page %d was requested for OCR but not returned by Document Intelligence",
+                pn + 1,
             )
-
-            # Extract lines with positions
-            if di_page.lines:
-                for line in di_page.lines:
-                    if line.polygon and line.content:
-                        x0, y0, x1, y1 = _polygon_to_bbox(line.polygon)
-                        ocr_page.lines.append(OcrSpan(
-                            text=line.content,
-                            x0=x0, y0=y0, x1=x1, y1=y1,
-                            confidence=1.0,  # line-level confidence not always available
-                        ))
-
-            results[page_num] = ocr_page
+            results[pn] = OcrPageResult(
+                page_number=pn,
+                width=0,
+                height=0,
+                confidence=0.0,
+                needs_review=True,
+            )
 
     # Process tables and assign to pages
     if result.tables:

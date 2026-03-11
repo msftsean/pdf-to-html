@@ -37,7 +37,7 @@ const ALLOWED_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
 ]);
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -53,7 +53,7 @@ function validateFile(file: File): void {
   if (file.size > MAX_FILE_SIZE) {
     const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
     throw new Error(
-      `File size (${sizeMB} MB) exceeds the 50 MB limit. ` +
+      `File size (${sizeMB} MB) exceeds the 100 MB limit. ` +
         'Please upload a smaller file.'
     );
   }

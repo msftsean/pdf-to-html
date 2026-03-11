@@ -50,76 +50,153 @@ def file_upload(myblob: func.InputStream):
     blob_name = myblob.name or "unknown"
     logger.info("Processing PDF: %s (%d bytes)", blob_name, myblob.length or 0)
 
-    # Read the full PDF into memory
-    pdf_data = myblob.read()
+    # Derive document_id from blob filename (format: <uuid>.<ext>)
+    base_filename = blob_name.rsplit("/", 1)[-1]
+    document_id = base_filename.rsplit(".", 1)[0] if "." in base_filename else base_filename
 
-    # --- Step 1: Extract content with PyMuPDF ---
-    pages, metadata = extract_pdf(pdf_data)
-    logger.info("Extracted %d pages. Metadata: %s", len(pages), metadata.get("title", "N/A"))
+    # --- Set status to "processing" ---
+    import time
+    start_time = time.monotonic()
 
-    # --- Step 2: Identify scanned pages that need OCR ---
-    scanned_pages = [p.page_number for p in pages if p.is_scanned]
-    ocr_results = {}
-
-    if scanned_pages:
-        logger.info("Sending %d scanned page(s) to Document Intelligence for OCR", len(scanned_pages))
-        try:
-            ocr_results = ocr_pdf_pages(pdf_data, scanned_pages)
-            logger.info("OCR complete for %d page(s)", len(ocr_results))
-        except Exception:
-            logger.exception("Document Intelligence OCR failed — scanned pages will have no text")
-
-    # --- Step 3: Build accessible HTML ---
-    html_content, image_files = build_html(
-        pages=pages,
-        ocr_results=ocr_results,
-        metadata=metadata,
-        embed_images=False,  # Store images as separate blobs
-    )
-
-    # --- Step 4: Upload results to blob storage ---
-    blob_service = _get_blob_service_client()
-    container_client = blob_service.get_container_client(_OUTPUT_CONTAINER)
-
-    # Ensure output container exists
     try:
-        container_client.create_container()
+        blob_service = _get_blob_service_client()
+        status_service.set_status(blob_service, document_id, "processing")
     except Exception:
-        pass  # Container already exists
+        logger.warning("Could not set processing status for %s", document_id)
+        blob_service = None
 
-    # Derive output path from input blob name
-    # e.g. "files/report.pdf" -> "report"
-    base_name = blob_name.rsplit("/", 1)[-1]
-    if base_name.lower().endswith(".pdf"):
-        base_name = base_name[:-4]
+    try:
+        # Read the full PDF into memory
+        pdf_data = myblob.read()
 
-    # Upload HTML
-    html_blob_name = f"{base_name}/{base_name}.html"
-    container_client.upload_blob(
-        name=html_blob_name,
-        data=html_content.encode("utf-8"),
-        overwrite=True,
-        content_settings=ContentSettings(content_type="text/html; charset=utf-8"),
-    )
-    logger.info("Uploaded HTML: %s/%s", _OUTPUT_CONTAINER, html_blob_name)
+        # --- Step 1: Extract content with PyMuPDF ---
+        pages, metadata = extract_pdf(pdf_data)
+        logger.info("Extracted %d pages. Metadata: %s", len(pages), metadata.get("title", "N/A"))
 
-    # Upload extracted images
-    for img_filename, img_bytes in image_files.items():
-        img_blob_name = f"{base_name}/images/{img_filename}"
-        ext = img_filename.rsplit(".", 1)[-1].lower()
-        mime = {"png": "image/png", "jpeg": "image/jpeg", "jpg": "image/jpeg"}.get(ext, "application/octet-stream")
-        container_client.upload_blob(
-            name=img_blob_name,
-            data=img_bytes,
-            overwrite=True,
-            content_settings=ContentSettings(content_type=mime),
+        # --- Step 2: Identify scanned pages that need OCR ---
+        scanned_pages = [p.page_number for p in pages if p.is_scanned]
+        ocr_results = {}
+
+        if scanned_pages:
+            logger.info("Sending %d scanned page(s) to Document Intelligence for OCR", len(scanned_pages))
+            try:
+                ocr_results = ocr_pdf_pages(pdf_data, scanned_pages)
+                logger.info("OCR complete for %d page(s)", len(ocr_results))
+            except Exception:
+                logger.exception("Document Intelligence OCR failed — scanned pages will have no text")
+
+        # --- Step 3: Build accessible HTML ---
+        html_content, image_files = build_html(
+            pages=pages,
+            ocr_results=ocr_results,
+            metadata=metadata,
+            embed_images=False,  # Store images as separate blobs
         )
 
-    logger.info(
-        "Done. Uploaded %d image(s) for '%s'",
-        len(image_files),
-        blob_name,
-    )
+        # --- Step 3b: Run WCAG validation on generated HTML ---
+        from wcag_validator import validate_html as wcag_validate
+        wcag_violations = wcag_validate(html_content)
+        is_compliant = not any(
+            v.severity in ("critical", "serious") for v in wcag_violations
+        )
+        if wcag_violations:
+            logger.warning(
+                "WCAG validation found %d violation(s) (compliant=%s)",
+                len(wcag_violations),
+                is_compliant,
+            )
+
+        # --- Step 3c: Collect OCR review flags ---
+        review_pages: list[int] = []
+        for page_num, ocr_page in ocr_results.items():
+            if ocr_page.needs_review:
+                review_pages.append(page_num + 1)  # 1-based for user-facing
+        review_pages.sort()
+        has_review_flags = len(review_pages) > 0
+
+        # --- Step 4: Upload results to blob storage ---
+        if blob_service is None:
+            blob_service = _get_blob_service_client()
+        container_client = blob_service.get_container_client(_OUTPUT_CONTAINER)
+
+        # Ensure output container exists
+        try:
+            container_client.create_container()
+        except Exception:
+            pass  # Container already exists
+
+        # Derive output path from input blob name
+        # e.g. "files/report.pdf" -> "report"
+        base_name = blob_name.rsplit("/", 1)[-1]
+        if base_name.lower().endswith(".pdf"):
+            base_name = base_name[:-4]
+
+        # Upload HTML
+        html_blob_name = f"{base_name}/{base_name}.html"
+        container_client.upload_blob(
+            name=html_blob_name,
+            data=html_content.encode("utf-8"),
+            overwrite=True,
+            content_settings=ContentSettings(content_type="text/html; charset=utf-8"),
+        )
+        logger.info("Uploaded HTML: %s/%s", _OUTPUT_CONTAINER, html_blob_name)
+
+        # Upload extracted images
+        for img_filename, img_bytes in image_files.items():
+            img_blob_name = f"{base_name}/images/{img_filename}"
+            ext = img_filename.rsplit(".", 1)[-1].lower()
+            mime = {"png": "image/png", "jpeg": "image/jpeg", "jpg": "image/jpeg"}.get(ext, "application/octet-stream")
+            container_client.upload_blob(
+                name=img_blob_name,
+                data=img_bytes,
+                overwrite=True,
+                content_settings=ContentSettings(content_type=mime),
+            )
+
+        # --- Step 5: Set status to "completed" with metadata ---
+        elapsed_ms = int((time.monotonic() - start_time) * 1000)
+
+        try:
+            status_service.set_status(
+                blob_service,
+                document_id,
+                "completed",
+                page_count=str(len(pages)),
+                pages_processed=str(len(pages)),
+                processing_time_ms=str(elapsed_ms),
+                is_compliant=str(is_compliant),
+                has_review_flags=str(has_review_flags),
+                review_pages=str(review_pages),
+                output_path=f"{_OUTPUT_CONTAINER}/{html_blob_name}",
+            )
+        except Exception:
+            logger.exception("Could not update completed status for %s", document_id)
+
+        logger.info(
+            "Done. Uploaded %d image(s) for '%s' in %dms (compliant=%s, review_pages=%s)",
+            len(image_files),
+            blob_name,
+            elapsed_ms,
+            is_compliant,
+            review_pages,
+        )
+
+    except Exception:
+        # --- On error: set status to "failed" ---
+        elapsed_ms = int((time.monotonic() - start_time) * 1000)
+        logger.exception("Conversion failed for %s", blob_name)
+        try:
+            if blob_service is None:
+                blob_service = _get_blob_service_client()
+            status_service.set_status(
+                blob_service,
+                document_id,
+                "failed",
+                error_message=f"Conversion failed after {elapsed_ms}ms",
+                processing_time_ms=str(elapsed_ms),
+            )
+        except Exception:
+            logger.exception("Could not set failed status for %s", document_id)
 
 
 # ---------------------------------------------------------------------------
