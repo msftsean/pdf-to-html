@@ -1,0 +1,49 @@
+/* ==========================================================================
+   NCDIT Digital Commons Design Tokens
+   North Carolina Department of Information Technology
+   "First in Flight" Design System
+   ========================================================================== */
+
+:root {
+  /* NCDIT Digital Commons Color Palette */
+  --nc-navy: #003366;
+  --nc-navy-dark: #002244;
+  --nc-action-blue: #1e79c8;
+  --nc-action-blue-hover: #1a6ab3;
+  --nc-white: #ffffff;
+  --nc-light-gray: #f5f5f5;
+  --nc-medium-gray: #6c757d;
+  --nc-dark-gray: #333333;
+  --nc-border-gray: #dee2e6;
+  --nc-success: #28a745;
+  --nc-warning: #ffc107;
+  --nc-danger: #dc3545;
+  --nc-info: #17a2b8;
+
+  /* Typography — Brandon Grotesque Bold / Century Gothic Bold for headings */
+  --nc-font-heading: 'Century Gothic', 'CenturyGothic', 'AppleGothic', sans-serif;
+  --nc-font-body: Georgia, 'Times New Roman', serif;
+  --nc-font-mono: 'Courier New', monospace;
+
+  /* Spacing Scale */
+  --nc-spacing-xs: 0.25rem;
+  --nc-spacing-sm: 0.5rem;
+  --nc-spacing-md: 1rem;
+  --nc-spacing-lg: 1.5rem;
+  --nc-spacing-xl: 2rem;
+  --nc-spacing-xxl: 3rem;
+
+  /* Border Radius */
+  --nc-radius-sm: 0.25rem;
+  --nc-radius-md: 0.375rem;
+  --nc-radius-lg: 0.5rem;
+
+  /* Shadows */
+  --nc-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --nc-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --nc-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+  /* Transitions */
+  --nc-transition-fast: 150ms ease-in-out;
+  --nc-transition-normal: 250ms ease-in-out;
+}

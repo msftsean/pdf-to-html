@@ -1,0 +1,81 @@
+/* ==========================================================================
+   Global Styles — NCDIT Document Converter
+   Imports Bootstrap 5 + Digital Commons design tokens
+   ========================================================================== */
+
+@import 'bootstrap/dist/css/bootstrap.min.css';
+@import './digital-commons.css';
+
+/* --------------------------------------------------------------------------
+   Base Typography
+   -------------------------------------------------------------------------- */
+
+body {
+  font-family: var(--nc-font-body);
+  color: var(--nc-dark-gray);
+  line-height: 1.6;
+  background-color: var(--nc-white);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--nc-font-heading);
+  font-weight: bold;
+  color: var(--nc-navy);
+}
+
+/* --------------------------------------------------------------------------
+   Links
+   -------------------------------------------------------------------------- */
+
+a {
+  color: var(--nc-action-blue);
+  transition: color var(--nc-transition-fast);
+}
+
+a:hover {
+  color: var(--nc-action-blue-hover);
+}
+
+/* --------------------------------------------------------------------------
+   Focus Indicators — WCAG 2.1 AA Compliance
+   Visible focus ring on all interactive elements for keyboard navigation.
+   -------------------------------------------------------------------------- */
+
+:focus-visible {
+  outline: 3px solid var(--nc-action-blue);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Skip Navigation Link — WCAG 2.1 AA
+   Hidden off-screen until focused, allows keyboard users to skip
+   repetitive navigation and jump straight to main content.
+   -------------------------------------------------------------------------- */
+
+.skip-nav {
+  position: absolute;
+  left: -9999px;
+  z-index: 999;
+  padding: 0.5rem 1rem;
+  background: var(--nc-navy);
+  color: var(--nc-white);
+  text-decoration: none;
+  font-family: var(--nc-font-heading);
+  font-size: 0.875rem;
+  border-radius: 0 0 var(--nc-radius-sm) 0;
+}
+
+.skip-nav:focus {
+  left: 0;
+  top: 0;
+  color: var(--nc-white);
+}
+
+/* --------------------------------------------------------------------------
+   Utility Classes
+   -------------------------------------------------------------------------- */
+
+.nc-text-navy { color: var(--nc-navy); }
+.nc-bg-navy { background-color: var(--nc-navy); }
+.nc-text-action { color: var(--nc-action-blue); }
+.nc-bg-light { background-color: var(--nc-light-gray); }

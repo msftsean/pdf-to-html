@@ -7,3 +7,8 @@ pymupdf
 azure-ai-documentintelligence
 azure-identity
 azure-storage-blob
+python-docx
+python-pptx
+pytest
+pytest-cov
+pytest-asyncio
