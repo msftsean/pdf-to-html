@@ -35,11 +35,25 @@ Convert PDF, Word, and PowerPoint documents published on North Carolina state we
 | 📐 Architecture | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
 | 🗺️ Implementation Plan | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
 | ✅ Task Breakdown | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
-| 🔧 Backend (PDF) | 🚧 In Progress | ![40%](https://img.shields.io/badge/40%25-yellow?style=flat-square) |
-| 🔍 OCR Pipeline | 🚧 In Progress | ![35%](https://img.shields.io/badge/35%25-yellow?style=flat-square) |
-| 🌐 Web UI | 📋 Planned | ![0%](https://img.shields.io/badge/0%25-lightgrey?style=flat-square) |
-| 📝 DOCX Support | 📋 Planned | ![0%](https://img.shields.io/badge/0%25-lightgrey?style=flat-square) |
-| 📊 PPTX Support | 📋 Planned | ![0%](https://img.shields.io/badge/0%25-lightgrey?style=flat-square) |
+| 🔧 Backend (PDF+OCR) | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+| 📝 DOCX Support | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+| 📊 PPTX Support | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+| 🌐 Web UI | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+| 🧪 Test Suite (444+ tests) | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+| 🤖 CI/CD & Eval Suite | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+
+### 📋 User Stories Implementation
+
+| ID | Story | Status |
+|----|-------|--------|
+| US-01 | Convert Digital PDF to Accessible HTML | ✅ Complete |
+| US-02 | Convert Scanned Legacy PDF with OCR | ✅ Complete |
+| US-03 | Batch Process Multiple Documents | ✅ Complete |
+| US-04 | Convert Word Documents to Accessible HTML | ✅ Complete |
+| US-05 | Convert PowerPoint to Accessible HTML | ✅ Complete |
+| US-06 | Upload Documents via Web Interface | ✅ Complete |
+| US-07 | Track Conversion Progress in Real-Time | ✅ Complete |
+| US-08 | Preview and Download Converted HTML | ✅ Complete |
 
 ## ✨ Features
 
@@ -57,46 +71,66 @@ Convert PDF, Word, and PowerPoint documents published on North Carolina state we
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   🌐 Web Interface                  │
-│         React / Next.js / Bootstrap 5               │
-│         NCDIT Digital Commons Design System         │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
-│  │ Upload   │  │ Status   │  │ Download/Preview │  │
-│  │ API      │  │ API      │  │ API              │  │
-│  └────┬─────┘  └────┬─────┘  └────────┬─────────┘  │
-│       │              │                 │            │
-├───────┴──────────────┴─────────────────┴────────────┤
-│              ⚡ Azure Functions (Python)             │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  ┌────────────┐  ┌─────────┐  ┌──────────────┐     │
-│  │ PDF        │  │ DOCX    │  │ PPTX         │     │
-│  │ Extractor  │  │ Extract │  │ Extractor    │     │
-│  │ (PyMuPDF)  │  │ (docx)  │  │ (pptx)       │     │
-│  └─────┬──────┘  └────┬────┘  └──────┬───────┘     │
-│        │              │              │              │
-│        └──────────────┼──────────────┘              │
-│                       ▼                             │
-│  ┌────────────────────────────────────────────┐     │
-│  │         🔍 OCR Service                     │     │
-│  │    Azure Document Intelligence             │     │
-│  │    (scanned pages only, <20 chars)         │     │
-│  └────────────────────┬───────────────────────┘     │
-│                       ▼                             │
-│  ┌────────────────────────────────────────────┐     │
-│  │         ♿ HTML Builder                     │     │
-│  │    Semantic HTML5 + WCAG 2.1 AA            │     │
-│  │    axe-core validation on output           │     │
-│  └────────────────────┬───────────────────────┘     │
-│                       ▼                             │
-│  ┌────────────────────────────────────────────┐     │
-│  │         📦 Azure Blob Storage              │     │
-│  │    files/ (input) → converted/ (output)    │     │
-│  └────────────────────────────────────────────┘     │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│               🌐 Next.js 14 Web Interface                   │
+│         React 18 • Bootstrap 5 • NCDIT Commons              │
+│    Drag-drop upload • Live progress • Preview • Download    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────┐  │
+│  │ Upload   │  │ Status   │  │ Download │  │ Health    │  │
+│  │ SAS API  │  │ Polling  │  │ SAS URLs │  │ Check API │  │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └─────┬─────┘  │
+│       │              │             │              │        │
+├───────┴──────────────┴─────────────┴──────────────┴────────┤
+│            ⚡ Azure Functions v4 (Python 3.12)              │
+│              Blob Trigger • HTTP Endpoints                  │
+├─────────────────────────────────────────────────────────────┤
+│                    📄 Document Extractors                   │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │ PDF Extract  │  │ DOCX Extract │  │ PPTX Extractor   │  │
+│  │ • PyMuPDF    │  │ • python-docx│  │ • python-pptx    │  │
+│  │ • Text spans │  │ • Styles     │  │ • Slide-by-slide │  │
+│  │ • Tables     │  │ • Tables     │  │ • Speaker notes  │  │
+│  │ • Images     │  │ • Images     │  │ • Images         │  │
+│  │ • Header/    │  │ • Header     │  │ • Tables         │  │
+│  │   footer rm  │  │   inference  │  │ • Charts         │  │
+│  └──────┬───────┘  └──────┬───────┘  └────────┬─────────┘  │
+│         │                 │                   │            │
+│         └─────────────────┼───────────────────┘            │
+│                           ▼                                │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │        🔍 Azure Document Intelligence OCR           │   │
+│  │     (scanned PDF pages only, <20 chars text)        │   │
+│  │     prebuilt-layout model • confidence scoring      │   │
+│  └───────────────────────┬─────────────────────────────┘   │
+│                          ▼                                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │          ♿ Semantic HTML Builder                    │   │
+│  │    • WCAG 2.1 AA compliant HTML5                    │   │
+│  │    • Heading hierarchy enforcement                  │   │
+│  │    • Table scope attributes                         │   │
+│  │    • Image alt text derivation                      │   │
+│  │    • Skip nav • Landmarks • Focus indicators        │   │
+│  │    • Low-confidence review banners                  │   │
+│  │    • Inline CSS (self-contained output)             │   │
+│  └───────────────────────┬─────────────────────────────┘   │
+│                          ▼                                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │          ✅ WCAG Validator (Python)                  │   │
+│  │    • 7 server-side compliance rules                 │   │
+│  │    • Alt text • Heading order • Table headers       │   │
+│  │    • Language attribute • Skip nav • Contrast       │   │
+│  └───────────────────────┬─────────────────────────────┘   │
+│                          ▼                                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │          📦 Azure Blob Storage                       │   │
+│  │    • files/ (user uploads via SAS token)            │   │
+│  │    • converted/ (HTML + images + metadata.json)     │   │
+│  │    • Status tracking via blob metadata              │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## 🚀 Quick Start
@@ -150,18 +184,51 @@ az storage blob upload \
 
 ## 🧪 Testing
 
+**444+ Tests Across All Layers**
+
+### Backend Tests (137 Python tests)
 ```bash
-# Backend tests
+# Run all backend tests
 pytest tests/ -v
 
-# Frontend tests
-cd frontend && npm test
+# Run with coverage report
+pytest tests/ -v --cov=. --cov-report=html
 
-# Accessibility validation
-cd frontend && npm run test:a11y
+# Run specific test suites
+pytest tests/unit/ -v                    # Unit tests (extractors, validators, builders)
+pytest tests/integration/ -v             # Integration tests (full pipelines)
+pytest tests/ -k "wcag" -v              # WCAG compliance tests only
+```
 
-# E2E tests
-npx playwright test
+### Frontend Tests (307 test cases)
+```bash
+cd frontend
+
+# Linting and type checking
+npm run lint
+
+# Build verification (catches TypeScript errors)
+npm run build
+
+# Run Next.js test suite
+npm test
+
+# Accessibility testing
+npm run test:a11y
+```
+
+### WCAG Evaluation Suite
+The project includes a comprehensive WCAG 2.1 AA evaluation suite that runs on every PR:
+- Converts real-world test documents (PDFs, DOCX, PPTX)
+- Validates heading hierarchy, table accessibility, image alt coverage
+- Generates compliance reports with violation details
+- Automatically posts results to PR comments
+- CI workflow: `.github/workflows/eval.yml`
+
+```bash
+# Run eval suite locally
+python scripts/run_evals.py --output tests/eval/results/eval-report.json
+python scripts/render_report.py --input tests/eval/results/eval-report.json --output tests/eval/results/eval-report.md
 ```
 
 ## 🦸 Squad (Justice League)
@@ -221,22 +288,39 @@ This project uses [GitHub Spec Kit](https://github.com/github/spec-kit) for spec
 
 ```
 pdf-to-html/
-├── 📄 function_app.py          # Azure Functions orchestrator
-├── 📄 pdf_extractor.py         # PDF extraction (PyMuPDF)
-├── 🔍 ocr_service.py           # OCR service (Document Intelligence)
+├── 📄 function_app.py          # Azure Functions orchestrator (blob trigger, HTTP APIs)
+├── 📄 pdf_extractor.py         # PDF → text/images/tables (PyMuPDF)
+├── 📝 docx_extractor.py        # Word document extraction (python-docx)
+├── 📊 pptx_extractor.py        # PowerPoint extraction (python-pptx)
+├── 🔍 ocr_service.py           # Azure Document Intelligence OCR client
 ├── ♿ html_builder.py           # WCAG-compliant HTML generation
-├── 📝 docx_extractor.py        # Word document extraction (planned)
-├── 📊 pptx_extractor.py        # PowerPoint extraction (planned)
-├── ✅ wcag_validator.py         # axe-core validation wrapper (planned)
-├── 📊 status_service.py        # Processing status tracking (planned)
+├── ✅ wcag_validator.py         # Server-side WCAG 2.1 AA validation (7 rules)
+├── 📊 status_service.py        # Document processing status tracking
+├── 📋 models.py                # Pydantic data models
 ├── 📦 requirements.txt         # Python dependencies
 ├── ⚙️ host.json                # Azure Functions configuration
-├── �� frontend/                # React/Next.js web interface (planned)
-├── 🧪 tests/                   # Backend test suite
-├── 📋 specs/                   # Spec Kit artifacts
-│   └── 001-sean/               # Feature spec, plan, tasks
-├── 🦸 pdf-to-html/.squad/      # Squad team configuration
-└── 🎨 .agents/skills/          # AI skills (frontend-design)
+│
+├── 🌐 frontend/                # Next.js 14 React app
+│   ├── app/                    # App Router (Next.js 13+)
+│   ├── components/             # React components (GovBanner, NCHeader, UploadZone, etc.)
+│   ├── services/               # API client services (upload, status, download)
+│   └── styles/                 # NCDIT Digital Commons design tokens
+│
+├── 🧪 tests/
+│   ├── unit/                   # Backend unit tests (137 tests)
+│   ├── integration/            # End-to-end pipeline tests
+│   ├── eval/                   # WCAG evaluation suite
+│   └── conftest.py             # Pytest fixtures
+│
+├── 🤖 .github/workflows/       # CI/CD workflows (eval.yml, squad automation)
+├── 🦸 .squad/                  # Squad (Justice League) config
+├── 📋 specs/001-sean/          # Spec Kit artifacts (spec, plan, tasks, contracts)
+├── 🎨 .agents/skills/          # AI skills (frontend-design)
+├── 📜 pdf-to-html/.specify/    # Spec Kit memory (constitution.md)
+├── 🔧 scripts/                 # Automation scripts (quickstart-check, evals)
+├── 📖 README.md                # This file
+├── 🚀 QUICKSTART.md            # Development setup guide
+└── ⚙️ .env.example              # Environment variables template
 ```
 
 ## ♿ Accessibility Commitment

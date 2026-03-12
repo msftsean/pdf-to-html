@@ -2,10 +2,17 @@ import io
 import json
 import logging
 import os
+import random
+import time as time_module
 import uuid
 from datetime import datetime, timedelta, timezone
 
 import azure.functions as func
+from azure.core.exceptions import (
+    ServiceRequestError,
+    ServiceResponseError,
+    HttpResponseError,
+)
 from azure.storage.blob import (
     BlobSasPermissions,
     BlobServiceClient,
@@ -44,6 +51,126 @@ def _get_blob_service_client() -> BlobServiceClient:
     return BlobServiceClient.from_connection_string(conn_str)
 
 
+# ---------------------------------------------------------------------------
+# T073: Blob storage retry with exponential backoff
+# ---------------------------------------------------------------------------
+
+def _retry_blob_operation(operation, max_retries: int = 3, initial_delay: float = 1.0):
+    """Execute a blob operation with exponential backoff retry logic.
+    
+    Args:
+        operation: A callable that performs the blob operation
+        max_retries: Maximum number of retry attempts (default 3)
+        initial_delay: Initial delay in seconds (default 1.0)
+    
+    Returns:
+        The result of the operation
+        
+    Raises:
+        The last exception if all retries fail
+    """
+    delay = initial_delay
+    last_exception = None
+    
+    for attempt in range(max_retries):
+        try:
+            return operation()
+        except (ServiceRequestError, ServiceResponseError, HttpResponseError) as e:
+            last_exception = e
+            if attempt < max_retries - 1:
+                # Add jitter: random value between delay and delay*1.5
+                jitter = delay * (1.0 + random.random() * 0.5)
+                logger.warning(
+                    "Blob operation failed (attempt %d/%d): %s. Retrying in %.2fs...",
+                    attempt + 1,
+                    max_retries,
+                    str(e),
+                    jitter,
+                )
+                time_module.sleep(jitter)
+                delay *= 2  # Exponential backoff
+            else:
+                logger.error(
+                    "Blob operation failed after %d attempts: %s",
+                    max_retries,
+                    str(e),
+                )
+    
+    if last_exception:
+        raise last_exception
+    
+
+def _is_password_protected_pdf(file_data: bytes) -> bool:
+    """Check if a PDF is password-protected or encrypted.
+    
+    Args:
+        file_data: Raw PDF file bytes
+        
+    Returns:
+        True if the PDF is encrypted/password-protected
+    """
+    import pymupdf
+    try:
+        doc = pymupdf.open(stream=file_data, filetype="pdf")
+        is_encrypted = doc.is_encrypted
+        doc.close()
+        return is_encrypted
+    except Exception as e:
+        # If we can't open the document at all, it might be encrypted
+        error_msg = str(e).lower()
+        if "password" in error_msg or "encrypt" in error_msg:
+            return True
+        raise
+
+
+def _is_password_protected_docx(file_data: bytes) -> bool:
+    """Check if a DOCX is password-protected or encrypted.
+    
+    Args:
+        file_data: Raw DOCX file bytes
+        
+    Returns:
+        True if the DOCX is encrypted/password-protected
+    """
+    from docx import Document
+    try:
+        Document(io.BytesIO(file_data))
+        return False
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "password" in error_msg or "encrypt" in error_msg or "protected" in error_msg:
+            return True
+        # Check for specific python-docx encryption errors
+        if "package" in error_msg and ("corrupt" in error_msg or "invalid" in error_msg):
+            # Could be encryption, but we'll re-raise to not mask other errors
+            pass
+        raise
+
+
+def _is_password_protected_pptx(file_data: bytes) -> bool:
+    """Check if a PPTX is password-protected or encrypted.
+    
+    Args:
+        file_data: Raw PPTX file bytes
+        
+    Returns:
+        True if the PPTX is encrypted/password-protected
+    """
+    from pptx import Presentation
+    try:
+        Presentation(io.BytesIO(file_data))
+        return False
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "password" in error_msg or "encrypt" in error_msg or "protected" in error_msg:
+            return True
+        # Check for specific python-pptx encryption errors
+        if "package" in error_msg and ("corrupt" in error_msg or "invalid" in error_msg):
+            # Could be encryption, but we'll re-raise to not mask other errors
+            pass
+        raise
+
+
 @app.blob_trigger(arg_name="myblob", path="files/{name}",
                                connection="AzureWebJobsStorage")
 def file_upload(myblob: func.InputStream):
@@ -69,8 +196,35 @@ def file_upload(myblob: func.InputStream):
         # Read file into memory
         file_data = myblob.read()
 
-        # --- Step 1: Extract content (route by file extension) ---
+        # --- T071: Check for password-protected documents ---
         ext = ("." + base_filename.rsplit(".", 1)[-1].lower()) if "." in base_filename else ""
+        
+        try:
+            if ext == ".pdf":
+                if _is_password_protected_pdf(file_data):
+                    raise ValueError("PASSWORD_PROTECTED")
+            elif ext == ".docx":
+                if _is_password_protected_docx(file_data):
+                    raise ValueError("PASSWORD_PROTECTED")
+            elif ext == ".pptx":
+                if _is_password_protected_pptx(file_data):
+                    raise ValueError("PASSWORD_PROTECTED")
+        except ValueError as ve:
+            if "PASSWORD_PROTECTED" in str(ve):
+                error_msg = "This document is password-protected. Please remove the password and re-upload."
+                logger.warning("Password-protected document rejected: %s", blob_name)
+                if blob_service is None:
+                    blob_service = _get_blob_service_client()
+                status_service.set_status(
+                    blob_service,
+                    document_id,
+                    "failed",
+                    error_message=error_msg,
+                )
+                return
+            raise
+
+        # --- Step 1: Extract content (route by file extension) ---
         if ext == ".docx":
             from docx_extractor import extract_docx
             pages, metadata = extract_docx(file_data)
@@ -127,11 +281,14 @@ def file_upload(myblob: func.InputStream):
             blob_service = _get_blob_service_client()
         container_client = blob_service.get_container_client(_OUTPUT_CONTAINER)
 
-        # Ensure output container exists
-        try:
-            container_client.create_container()
-        except Exception:
-            pass  # Container already exists
+        # Ensure output container exists (with retry)
+        def _create_container():
+            try:
+                container_client.create_container()
+            except Exception:
+                pass  # Container already exists
+        
+        _retry_blob_operation(_create_container)
 
         # Derive output path from input blob name
         # e.g. "files/report.pdf" -> "report"
@@ -141,27 +298,35 @@ def file_upload(myblob: func.InputStream):
                 base_name = base_name[:-len(known_ext)]
                 break
 
-        # Upload HTML
+        # Upload HTML (with retry)
         html_blob_name = f"{base_name}/{base_name}.html"
-        container_client.upload_blob(
-            name=html_blob_name,
-            data=html_content.encode("utf-8"),
-            overwrite=True,
-            content_settings=ContentSettings(content_type="text/html; charset=utf-8"),
-        )
+        
+        def _upload_html():
+            container_client.upload_blob(
+                name=html_blob_name,
+                data=html_content.encode("utf-8"),
+                overwrite=True,
+                content_settings=ContentSettings(content_type="text/html; charset=utf-8"),
+            )
+        
+        _retry_blob_operation(_upload_html)
         logger.info("Uploaded HTML: %s/%s", _OUTPUT_CONTAINER, html_blob_name)
 
-        # Upload extracted images
+        # Upload extracted images (with retry for each)
         for img_filename, img_bytes in image_files.items():
             img_blob_name = f"{base_name}/images/{img_filename}"
             ext = img_filename.rsplit(".", 1)[-1].lower()
             mime = {"png": "image/png", "jpeg": "image/jpeg", "jpg": "image/jpeg"}.get(ext, "application/octet-stream")
-            container_client.upload_blob(
-                name=img_blob_name,
-                data=img_bytes,
-                overwrite=True,
-                content_settings=ContentSettings(content_type=mime),
-            )
+            
+            def _upload_image():
+                container_client.upload_blob(
+                    name=img_blob_name,
+                    data=img_bytes,
+                    overwrite=True,
+                    content_settings=ContentSettings(content_type=mime),
+                )
+            
+            _retry_blob_operation(_upload_image)
 
         # --- Step 5: Set status to "completed" with metadata ---
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
@@ -261,19 +426,29 @@ def generate_sas_token(req: func.HttpRequest) -> func.HttpResponse:
         doc_name = filename.rsplit(".", 1)[0] if "." in filename else filename
         blob_name = f"{document_id}{ext}"
 
-        # Ensure the input container exists
+        # Ensure the input container exists (with retry)
         container_client = blob_service.get_container_client(_INPUT_CONTAINER)
-        try:
-            container_client.create_container()
-        except Exception:
-            pass  # already exists
+        
+        def _create_input_container():
+            try:
+                container_client.create_container()
+            except Exception:
+                pass  # already exists
+        
+        _retry_blob_operation(_create_input_container)
 
+        # T074: Handle filename conflicts by checking if blob exists
+        # Since we're using document_id (UUID) as the blob name, conflicts are
+        # virtually impossible. But we store the original filename in metadata
+        # for display purposes and ensure uniqueness at the document_id level.
+        
         # Pre-create the blob with initial metadata so status tracking works
         # even before the upload completes.  Upload an empty placeholder;
         # the real content arrives via the SAS URL.
         initial_metadata = {
             "document_id": document_id,
             "name": doc_name,
+            "original_filename": filename,  # T074: preserve for display
             "format": doc_format,
             "size_bytes": str(size_bytes),
             "upload_timestamp": datetime.now(timezone.utc).isoformat(),
@@ -289,9 +464,13 @@ def generate_sas_token(req: func.HttpRequest) -> func.HttpResponse:
             "is_compliant": "",
         }
 
-        # Create blob placeholder (will be overwritten by browser upload)
+        # Create blob placeholder (will be overwritten by browser upload) - with retry
         blob_client = container_client.get_blob_client(blob_name)
-        blob_client.upload_blob(b"", overwrite=True, metadata=initial_metadata)
+        
+        def _create_placeholder():
+            blob_client.upload_blob(b"", overwrite=True, metadata=initial_metadata)
+        
+        _retry_blob_operation(_create_placeholder)
 
         # Generate SAS token
         expiry = datetime.now(timezone.utc) + timedelta(

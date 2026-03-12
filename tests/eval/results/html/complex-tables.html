@@ -12,11 +12,45 @@
             padding: 2rem;
             line-height: 1.6;
             color: #1a1a1a;
+            background-color: #fff;
+        }
+        /* Skip navigation — visible on focus for keyboard users */
+        .skip-nav {
+            position: absolute;
+            top: -100%;
+            left: 0;
+            padding: 0.75rem 1.5rem;
+            background: #003366;
+            color: #fff;
+            font-weight: bold;
+            text-decoration: underline;
+            z-index: 1000;
+        }
+        .skip-nav:focus {
+            top: 0;
+        }
+        /* WCAG 2.4.7 — visible focus indicators on all focusable elements */
+        a:focus-visible,
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible,
+        [tabindex]:focus-visible {
+            outline: 3px solid #0056b3;
+            outline-offset: 2px;
+        }
+        /* Links — visible underlines, sufficient contrast */
+        a {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+        a:hover {
+            color: #003d80;
         }
         .pdf-page {
             margin-bottom: 2rem;
             padding-bottom: 2rem;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid #595959;
         }
         table {
             border-collapse: collapse;
@@ -24,13 +58,14 @@
             margin: 1rem 0;
         }
         th, td {
-            border: 1px solid #ccc;
+            border: 1px solid #767676;
             padding: 0.5rem;
             text-align: left;
         }
         th {
-            background-color: #f5f5f5;
+            background-color: #f0f0f0;
             font-weight: bold;
+            color: #1a1a1a;
         }
         figure {
             margin: 1rem 0;
@@ -38,22 +73,54 @@
         }
         figcaption {
             font-size: 0.875rem;
-            color: #666;
+            color: #595959;
             margin-top: 0.5rem;
         }
         img {
             max-width: 100%;
             height: auto;
         }
-        h1 { font-size: 2rem; margin-top: 1.5rem; }
-        h2 { font-size: 1.5rem; margin-top: 1.25rem; }
-        h3 { font-size: 1.25rem; margin-top: 1rem; }
-        h4 { font-size: 1.1rem; margin-top: 0.75rem; }
+        h1 { font-size: 2rem; margin-top: 1.5rem; color: #1a1a1a; }
+        h2 { font-size: 1.5rem; margin-top: 1.25rem; color: #1a1a1a; }
+        h3 { font-size: 1.25rem; margin-top: 1rem; color: #1a1a1a; }
+        h4 { font-size: 1.1rem; margin-top: 0.75rem; color: #1a1a1a; }
+        h5 { font-size: 1rem; margin-top: 0.5rem; color: #1a1a1a; }
+        h6 { font-size: 0.875rem; margin-top: 0.5rem; color: #1a1a1a; }
+        /* Review notice banner — T034 */
+        .review-notice {
+            background-color: #fff3cd;
+            color: #664d03;
+            border: 2px solid #997a00;
+            border-radius: 4px;
+            padding: 0.75rem 1rem;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        .review-notice strong {
+            color: #664d03;
+        }
+        /* Speaker notes — PPTX slide notes */
+        .speaker-notes {
+            background-color: #f8f9fa;
+            border: 1px solid #767676;
+            border-radius: 4px;
+            padding: 0.5rem 1rem;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+            color: #1a1a1a;
+        }
+        .speaker-notes summary {
+            font-weight: bold;
+            cursor: pointer;
+            color: #1a1a1a;
+        }
     </style>
 </head>
 <body>
-    <main>
-<section aria-label="Page 1" class="pdf-page">
+    <a href="#main-content" class="skip-nav">Skip to main content</a>
+    <main id="main-content">
+<section aria-label="Page 1" class="pdf-page" role="region">
 <table role="grid">
   <thead>
     <tr>
@@ -64,22 +131,22 @@
   </thead>
   <tbody>
     <tr>
-      <td>Alice Johnson</td>
+      <td scope="row">Alice Johnson</td>
       <td>Engineering</td>
       <td>x4521</td>
     </tr>
     <tr>
-      <td>Bob Martinez</td>
+      <td scope="row">Bob Martinez</td>
       <td>Human Resources</td>
       <td>x3100</td>
     </tr>
     <tr>
-      <td>Carol Chen</td>
+      <td scope="row">Carol Chen</td>
       <td>Finance</td>
       <td>x2890</td>
     </tr>
     <tr>
-      <td>David Williams</td>
+      <td scope="row">David Williams</td>
       <td>IT Security</td>
       <td>x4150</td>
     </tr>
@@ -99,7 +166,7 @@
   </thead>
   <tbody>
     <tr>
-      <td>January</td>
+      <td scope="row">January</td>
       <td>$45.2K</td>
       <td>$38.1K</td>
       <td>$7.1K</td>
@@ -108,7 +175,7 @@
       <td>92%</td>
     </tr>
     <tr>
-      <td>February</td>
+      <td scope="row">February</td>
       <td>$42.8K</td>
       <td>$36.5K</td>
       <td>$6.3K</td>
@@ -117,7 +184,7 @@
       <td>91%</td>
     </tr>
     <tr>
-      <td>March</td>
+      <td scope="row">March</td>
       <td>$48.1K</td>
       <td>$39.2K</td>
       <td>$8.9K</td>
@@ -126,7 +193,7 @@
       <td>93%</td>
     </tr>
     <tr>
-      <td>April</td>
+      <td scope="row">April</td>
       <td>$51.3K</td>
       <td>$41.0K</td>
       <td>$10.3K</td>
@@ -135,7 +202,7 @@
       <td>94%</td>
     </tr>
     <tr>
-      <td>May</td>
+      <td scope="row">May</td>
       <td>$49.7K</td>
       <td>$40.5K</td>
       <td>$9.2K</td>
@@ -144,7 +211,7 @@
       <td>90%</td>
     </tr>
     <tr>
-      <td>June</td>
+      <td scope="row">June</td>
       <td>$53.4K</td>
       <td>$42.8K</td>
       <td>$10.6K</td>
@@ -155,10 +222,10 @@
   </tbody>
 </table>
 <h1>Data Tables Reference</h1>
-<h3>Table 1: Employee Directory</h3>
+<h2>Table 1: Employee Directory</h2>
 <h3>Table 2: Monthly Performance Dashboard</h3>
 </section>
-<section aria-label="Page 2" class="pdf-page">
+<section aria-label="Page 2" class="pdf-page" role="region">
 <table role="grid">
   <thead>
     <tr>
@@ -172,7 +239,7 @@
   </thead>
   <tbody>
     <tr>
-      <td>Personnel</td>
+      <td scope="row">Personnel</td>
       <td>$12.5M</td>
       <td>$13.2M</td>
       <td>$14.0M</td>
@@ -180,7 +247,7 @@
       <td>+5.7%</td>
     </tr>
     <tr>
-      <td>Technology</td>
+      <td scope="row">Technology</td>
       <td>$8.3M</td>
       <td>$9.1M</td>
       <td>$10.5M</td>
@@ -188,7 +255,7 @@
       <td>+6.7%</td>
     </tr>
     <tr>
-      <td>Facilities</td>
+      <td scope="row">Facilities</td>
       <td>$3.2M</td>
       <td>$3.4M</td>
       <td>$3.5M</td>
@@ -196,7 +263,7 @@
       <td>+2.9%</td>
     </tr>
     <tr>
-      <td>Training</td>
+      <td scope="row">Training</td>
       <td>$1.1M</td>
       <td>$1.3M</td>
       <td>$1.5M</td>
@@ -204,7 +271,7 @@
       <td>+13.3%</td>
     </tr>
     <tr>
-      <td>Operations</td>
+      <td scope="row">Operations</td>
       <td>$5.8M</td>
       <td>$6.0M</td>
       <td>$6.3M</td>
@@ -212,7 +279,7 @@
       <td>+3.2%</td>
     </tr>
     <tr>
-      <td>Total</td>
+      <td scope="row">Total</td>
       <td>$30.9M</td>
       <td>$33.0M</td>
       <td>$35.8M</td>
@@ -221,7 +288,7 @@
     </tr>
   </tbody>
 </table>
-<h3>Table 3: Full-Width Budget Allocation</h3>
+<h1>Table 3: Full-Width Budget Allocation</h1>
 </section>
     </main>
 </body>

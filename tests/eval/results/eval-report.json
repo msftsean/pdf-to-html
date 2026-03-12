@@ -1,65 +1,11 @@
 {
-  "timestamp": "2026-03-11T22:08:49.970654+00:00",
+  "timestamp": "2026-03-12T00:51:12.407761+00:00",
   "samples_dir": "/workspaces/pdf-to-html/tests/eval/samples",
   "documents": [
     {
       "filename": "complex-tables.pdf",
       "page_count": 2,
-      "conversion_time_ms": 136,
-      "violations": {
-        "critical": 0,
-        "serious": 0,
-        "moderate": 1,
-        "minor": 0
-      },
-      "scores": {
-        "heading_hierarchy": 75.0,
-        "table_accessibility": 100.0,
-        "image_alt_coverage": 100.0
-      },
-      "result": "PASS",
-      "violation_details": [
-        {
-          "rule_id": "heading-order",
-          "severity": "moderate",
-          "description": "Heading level skipped: <h3> follows <h1> (expected ≤ h2)",
-          "html_element": "<h3>",
-          "help_url": "https://dequeuniversity.com/rules/axe/4.7/heading-order"
-        }
-      ],
-      "error": null
-    },
-    {
-      "filename": "digital-report.pdf",
-      "page_count": 5,
-      "conversion_time_ms": 91,
-      "violations": {
-        "critical": 0,
-        "serious": 0,
-        "moderate": 1,
-        "minor": 0
-      },
-      "scores": {
-        "heading_hierarchy": 83.3,
-        "table_accessibility": 100.0,
-        "image_alt_coverage": 100.0
-      },
-      "result": "PASS",
-      "violation_details": [
-        {
-          "rule_id": "heading-order",
-          "severity": "moderate",
-          "description": "Heading level skipped: <h3> follows <h1> (expected ≤ h2)",
-          "html_element": "<h3>",
-          "help_url": "https://dequeuniversity.com/rules/axe/4.7/heading-order"
-        }
-      ],
-      "error": null
-    },
-    {
-      "filename": "image-heavy.pdf",
-      "page_count": 3,
-      "conversion_time_ms": 19,
+      "conversion_time_ms": 128,
       "violations": {
         "critical": 0,
         "serious": 0,
@@ -67,7 +13,45 @@
         "minor": 0
       },
       "scores": {
-        "heading_hierarchy": 75.0,
+        "heading_hierarchy": 100.0,
+        "table_accessibility": 100.0,
+        "image_alt_coverage": 100.0
+      },
+      "result": "PASS",
+      "violation_details": [],
+      "error": null
+    },
+    {
+      "filename": "digital-report.pdf",
+      "page_count": 5,
+      "conversion_time_ms": 92,
+      "violations": {
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0
+      },
+      "scores": {
+        "heading_hierarchy": 100.0,
+        "table_accessibility": 100.0,
+        "image_alt_coverage": 100.0
+      },
+      "result": "PASS",
+      "violation_details": [],
+      "error": null
+    },
+    {
+      "filename": "image-heavy.pdf",
+      "page_count": 3,
+      "conversion_time_ms": 17,
+      "violations": {
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0
+      },
+      "scores": {
+        "heading_hierarchy": 100.0,
         "table_accessibility": 100.0,
         "image_alt_coverage": 100.0
       },
@@ -78,7 +62,7 @@
     {
       "filename": "simple-memo.pdf",
       "page_count": 1,
-      "conversion_time_ms": 20,
+      "conversion_time_ms": 23,
       "violations": {
         "critical": 0,
         "serious": 0,

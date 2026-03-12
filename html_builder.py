@@ -12,6 +12,7 @@ WCAG 2.1 AA compliance features:
 - 4.5:1 contrast ratio for normal text, 3:1 for large text
 - Visible :focus-visible outlines on keyboard-focusable elements
 - Review notice banners for low-confidence OCR pages
+- Multi-language support with lang attribute detection (T072)
 """
 
 import base64
@@ -35,6 +36,63 @@ _BULLET_RE = re.compile(
     r'|^\s*[a-zA-Z][.)\]]\s+'
     r'|^\s*[ivxIVX]{1,4}[.)\]]\s+'
 )
+
+
+# ---------------------------------------------------------------------------
+# T072: Multi-language detection heuristics
+# ---------------------------------------------------------------------------
+
+def _detect_language(text: str, default: str = "en") -> str:
+    """Detect language of text content using simple heuristics.
+    
+    Uses character frequency patterns to detect common non-English languages.
+    Falls back to default if detection is uncertain.
+    
+    Args:
+        text: The text content to analyze
+        default: Default language code if detection fails
+        
+    Returns:
+        ISO 639-1 language code (e.g., "es", "fr", "de", "en")
+    """
+    if not text or len(text.strip()) < 20:
+        return default
+    
+    text_lower = text.lower()
+    text_clean = text_lower.replace(" ", "")
+    
+    # Character frequency patterns for language detection
+    # Check in order of specificity
+    
+    # Portuguese indicators (check first - most distinctive markers)
+    portuguese_chars = sum(text_clean.count(c) for c in "ãõ")  # Unique to Portuguese
+    portuguese_words = sum(text_lower.count(w) for w in [" o ", " a ", " os ", " as ", " de ", " do ", " da ", " está ", " são "])
+    if portuguese_chars > len(text_clean) * 0.008 or portuguese_words >= 4:
+        return "pt"
+    
+    # French indicators
+    french_chars = sum(text_clean.count(c) for c in "àâæèêëîïôùû")  # Excluding ç which is in Portuguese
+    french_words = sum(text_lower.count(w) for w in [" le ", " la ", " les ", " de ", " et ", " à ", " pour "])
+    if french_chars > len(text_clean) * 0.018 or french_words >= 3:
+        return "fr"
+    
+    # Spanish indicators
+    spanish_chars = sum(text_clean.count(c) for c in "ñáéíóúü¿¡")
+    if spanish_chars > len(text_clean) * 0.015:  # 1.5% threshold
+        return "es"
+    
+    # German indicators
+    german_chars = sum(text_clean.count(c) for c in "äöüß")
+    german_words = sum(text_lower.count(w) for w in [" der ", " die ", " das ", " und ", " ist ", " für "])
+    if german_chars > len(text_clean) * 0.02 or german_words >= 3:
+        return "de"
+    
+    # Italian indicators
+    italian_words = sum(text_lower.count(w) for w in [" il ", " la ", " le ", " di ", " è ", " del ", " dei "])
+    if italian_words >= 3:
+        return "it"
+    
+    return default
 
 
 def _strip_bullet_prefix(text: str) -> str:
@@ -333,9 +391,16 @@ def build_html(
         else:
             section_label = f"Page {page_num + 1}"
 
+        # T072: Detect language for this section's content
+        section_text = " ".join(s.text for s in page.text_spans[:50])  # Sample first 50 spans
+        section_lang = _detect_language(section_text, default=lang)
+        
+        # Add lang attribute if different from document default
+        lang_attr = f' lang="{section_lang}"' if section_lang != lang else ''
+
         body_parts.append(
             f'<section aria-label="{section_label}" '
-            f'class="pdf-page" role="region">'
+            f'class="pdf-page" role="region"{lang_attr}>'
         )
 
         if page.is_scanned and page_num in ocr_results:

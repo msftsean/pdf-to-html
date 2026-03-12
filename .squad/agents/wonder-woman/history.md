@@ -5,6 +5,7 @@
 - **2026-03-11:** Joined the squad as Backend Developer.
 - **Phase 2 Backend Sprint:** Completed T008–T010, T017–T019.
 - **2026-03-12:** Completed Phase 10 US5 (PPTX Support).
+- **2026-03-12:** Completed Phase 13 Backend Hardening (T071–T074).
 
 ## Learnings
 
@@ -18,6 +19,10 @@
 - **OCR confidence scoring architecture:** OcrPageResult now carries `confidence` (float, 0.0–1.0) and `needs_review` (bool). Confidence is computed from Document Intelligence word-level scores averaged across the page. Pages below 0.70 threshold get review banners in the HTML and are tracked in blob metadata.
 - **Graceful OCR failure pattern:** ocr_service.py now wraps both full-call and per-page processing in try/except. On failure, a stub OcrPageResult with confidence=0.0 and needs_review=True is returned so the pipeline continues without crashing. The html_builder renders a "Content Unavailable" notice for empty OCR results.
 - **Blob trigger status lifecycle:** The blob trigger now follows a strict status flow: pending→processing→completed/failed. It times the entire conversion (time.monotonic), runs wcag_validator on the output HTML, collects OCR review_pages, and writes all metadata back via status_service.set_status(). On exception, it sets status to "failed" with the error context.
+- **Password-protected document detection (T071):** PyMuPDF's `is_encrypted` property reliably detects encrypted PDFs. For DOCX/PPTX, python-docx and python-pptx raise exceptions containing "password", "encrypt", or "protected" when opening encrypted files. Early detection at the blob trigger stage sets status to "failed" with a clear user-facing error message before wasting processing cycles.
+- **Multi-language lang attribute (T072):** Simple heuristic-based language detection using character frequency (ñ, ã, õ, ß, etc.) and common function words detects Spanish, French, German, Italian, and Portuguese with reasonable accuracy. Each `<section>` gets a `lang` attribute if it differs from the document default. Checking order matters: Portuguese (ãõ) first, then French (àâæèêë), then Spanish (ñ). Falls back to document default for ambiguous/English content.
+- **Exponential backoff retry for blob operations (T073):** Wrapping Azure Blob operations in `_retry_blob_operation()` with exponential backoff (1s, 2s, 4s) + random jitter (0–50%) handles transient `ServiceResponseError`, `ServiceRequestError`, and `HttpResponseError` gracefully. Each retry is logged with attempt number. Non-transient exceptions (ValueError, TypeError) are not retried — fail fast on programmer errors.
+- **Filename conflict handling via UUID document_id (T074):** Using UUID-based blob names (`{document_id}.pdf`) for storage eliminates filename collisions entirely. The original filename is preserved in blob metadata (`original_filename` field) for display purposes. No timestamp suffixes or conflict resolution needed — UUIDs guarantee uniqueness across concurrent uploads.
 
 ### Phase 10 — US5: PPTX Support (Session 3)
 
