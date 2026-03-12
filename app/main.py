@@ -444,9 +444,21 @@ async def get_download_url(document_id: str):
             minutes=SAS_DOWNLOAD_EXPIRY_MINUTES
         )
 
-        base_name = doc.name
-        html_blob = f"{base_name}/{base_name}.html"
-        zip_blob = f"{base_name}/{base_name}.zip"
+        # Derive the HTML blob path from output_path stored by the worker.
+        # output_path format: "converted/{doc_id}/{datestamp}_{name}.html"
+        if doc.output_path:
+            # Strip the container prefix if present
+            html_blob = doc.output_path
+            container_prefix = f"{settings.OUTPUT_CONTAINER}/"
+            if html_blob.startswith(container_prefix):
+                html_blob = html_blob[len(container_prefix):]
+        else:
+            # Legacy fallback for docs converted before output_path was stored
+            html_blob = f"{doc.name}/{doc.name}.html"
+
+        # Derive folder from html blob path for images/zip lookup
+        output_folder = html_blob.rsplit("/", 1)[0] if "/" in html_blob else doc.name
+        zip_blob = html_blob.replace(".html", ".zip")
 
         html_url = generate_download_sas_url(
             blob_service, settings.OUTPUT_CONTAINER, html_blob, expiry
@@ -458,7 +470,7 @@ async def get_download_url(document_id: str):
             settings.OUTPUT_CONTAINER
         )
         assets: list[dict] = []
-        images_prefix = f"{base_name}/images/"
+        images_prefix = f"{output_folder}/images/"
         try:
             for blob in container_client.list_blobs(
                 name_starts_with=images_prefix
