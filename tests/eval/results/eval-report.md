@@ -2,7 +2,7 @@
 
 **🟢 PASS** — All documents meet WCAG 2.1 AA compliance
 
-**Generated:** 2026-03-11T22:08:49.970654+00:00
+**Generated:** 2026-03-12T01:44:41.408723+00:00
 **Samples directory:** `/workspaces/pdf-to-html/tests/eval/samples`
 
 ---
@@ -23,10 +23,10 @@
 
 | Document | Pages | Time (ms) | Headings | Tables | Images | Critical | Serious | Moderate | Minor | Result |
 |----------|------:|----------:|---------:|-------:|-------:|---------:|--------:|---------:|------:|--------|
-| complex-tables.pdf | 2 | 136 | 75.0% | 100.0% | 100.0% | 0 | 0 | 1 | 0 | ✅ PASS |
-| digital-report.pdf | 5 | 91 | 83.3% | 100.0% | 100.0% | 0 | 0 | 1 | 0 | ✅ PASS |
-| image-heavy.pdf | 3 | 19 | 75.0% | 100.0% | 100.0% | 0 | 0 | 0 | 0 | ✅ PASS |
-| simple-memo.pdf | 1 | 20 | 100.0% | 100.0% | 100.0% | 0 | 0 | 0 | 0 | ✅ PASS |
+| complex-tables.pdf | 2 | 167 | 100.0% | 100.0% | 100.0% | 0 | 0 | 0 | 0 | ✅ PASS |
+| digital-report.pdf | 5 | 87 | 100.0% | 100.0% | 100.0% | 0 | 0 | 0 | 0 | ✅ PASS |
+| image-heavy.pdf | 3 | 19 | 100.0% | 100.0% | 100.0% | 0 | 0 | 0 | 0 | ✅ PASS |
+| simple-memo.pdf | 1 | 25 | 100.0% | 100.0% | 100.0% | 0 | 0 | 0 | 0 | ✅ PASS |
 
 ---
 
@@ -34,23 +34,16 @@
 
 | Document | Source Pages | Conversion Time | Violations Found | Compliance Score |
 |----------|------------:|-----------------|-----------------:|------------------|
-| complex-tables.pdf | 2 | 136 ms | 1 | ✅ PASS |
-| digital-report.pdf | 5 | 91 ms | 1 | ✅ PASS |
+| complex-tables.pdf | 2 | 167 ms | 0 | ✅ PASS |
+| digital-report.pdf | 5 | 87 ms | 0 | ✅ PASS |
 | image-heavy.pdf | 3 | 19 ms | 0 | ✅ PASS |
-| simple-memo.pdf | 1 | 20 ms | 0 | ✅ PASS |
+| simple-memo.pdf | 1 | 25 ms | 0 | ✅ PASS |
 
 ---
 
 ## WCAG Violation Details
 
-### `heading-order`
-
-| Severity | Document | Description | Element |
-|----------|----------|-------------|---------|
-| 🟡 moderate | complex-tables.pdf | Heading level skipped: <h3> follows <h1> (expected ≤ h2) | `<h3>` |
-| 🟡 moderate | digital-report.pdf | Heading level skipped: <h3> follows <h1> (expected ≤ h2) | `<h3>` |
-📚 [Deque rule reference](https://dequeuniversity.com/rules/axe/4.7/heading-order)
-
+_No WCAG violations found. All documents are fully compliant._
 
 ---
 
