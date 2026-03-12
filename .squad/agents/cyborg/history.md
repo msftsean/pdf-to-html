@@ -84,3 +84,37 @@
 - **Resource Group Name**: Correct name is `rg-pdf-to-html` (NOT `rg-pdftohtml`)
 - **Cold Start Mitigation**: For production, consider Premium plan (always warm) or configure Application Insights to monitor cold start metrics
 - **Function Naming Convention**: Azure Functions automatically converts snake_case function names to kebab-case URLs (e.g., `generate_sas_token` → `/api/generate-sas-token`)
+
+---
+
+## Phase 6: CI/CD + Infrastructure as Code (Container Apps Migration)
+
+**Date**: $(date -u +%Y-%m-%d)
+**Task**: T025–T031 — Deploy pipeline + Bicep IaC for Azure Container Apps
+
+### Created Files
+
+| File | Purpose |
+|------|---------|
+| `.github/workflows/deploy-aca.yml` | CI/CD pipeline: builds images via ACR Tasks, deploys 3 Container Apps, smoke tests health endpoint |
+| `infra/main.bicep` | Orchestrator — wires ACR, Container Apps, Event Grid modules together |
+| `infra/modules/container-registry.bicep` | ACR Basic SKU, admin disabled, managed identity pull |
+| `infra/modules/container-apps.bicep` | Container Apps Environment + API (port 8000), Worker (queue-scaled), Frontend (port 3000) |
+| `infra/modules/event-grid.bicep` | System topic on storage + subscription: BlobCreated on files/ → conversion-jobs queue |
+| `infra/parameters/dev.bicepparam` | Dev environment parameters |
+| `infra/parameters/prod.bicepparam` | Prod environment parameters |
+
+### Updated Files
+
+| File | Change |
+|------|--------|
+| `.github/workflows/eval.yml` | Added pytest step before eval suite — runs unit tests with Azurite storage |
+
+### Learnings
+
+- **Worker reuses API image**: The worker Container App uses the same `pdf-to-html-api` image but overrides the command to `python -m app.worker`. This avoids building a separate image.
+- **KEDA queue scaling**: Worker scales 0→10 based on queue length=1, meaning each message gets its own replica. This is optimal for CPU-heavy PDF conversion.
+- **ACR Tasks for CI builds**: Using `az acr build` avoids needing Docker daemon in GitHub Actions runners — ACR builds the image server-side.
+- **Managed Identity for ACR pull**: Instead of admin credentials, Container Apps use a User-Assigned Managed Identity with AcrPull role. Zero secrets in Container Apps config.
+- **Event Grid filter**: SubjectBeginsWith filter on `/blobServices/default/containers/files/` plus `contentLength > 0` ensures only real file uploads (not empty blobs or metadata) trigger conversion.
+- **Health probes**: API has liveness on /health (30s interval) and readiness on /ready (10s interval). This lets Azure restart hung containers and avoid routing traffic to unready instances.

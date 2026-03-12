@@ -48,6 +48,15 @@ az role assignment create \
   --scope "$STORAGE_SCOPE" \
   -o none 2>/dev/null || echo "  (Storage Blob Data Contributor may already exist)"
 
+# Storage Blob Delegator — required for user-delegation SAS tokens
+# (identity-based auth generates SAS via UserDelegationKey, not account key)
+az role assignment create \
+  --assignee-object-id "$MSI_PRINCIPAL" \
+  --assignee-principal-type ServicePrincipal \
+  --role "Storage Blob Delegator" \
+  --scope "$STORAGE_SCOPE" \
+  -o none 2>/dev/null || echo "  (Storage Blob Delegator may already exist)"
+
 # Storage Queue Data Contributor — Azure Functions uses queues internally
 az role assignment create \
   --assignee-object-id "$MSI_PRINCIPAL" \

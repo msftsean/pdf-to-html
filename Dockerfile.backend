@@ -1,0 +1,30 @@
+###############################################################################
+# Dockerfile.backend — Multi-stage build for the WCAG converter API
+#
+#   Build:  docker build -f Dockerfile.backend -t pdf-to-html-backend .
+#   Run:    docker run -p 8000:8000 --env-file .env pdf-to-html-backend
+###############################################################################
+
+# ── Stage 1: install Python dependencies ────────────────────────────────────
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ── Stage 2: lightweight runtime image ──────────────────────────────────────
+FROM python:3.12-slim AS runtime
+
+WORKDIR /app
+
+# Copy installed packages and uvicorn binary from the builder stage
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin/uvicorn /usr/local/bin/uvicorn
+
+# Copy application code
+COPY app/  ./app/
+COPY backend/ ./backend/
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

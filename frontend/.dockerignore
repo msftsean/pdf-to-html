@@ -1,0 +1,28 @@
+# Dependencies & build artifacts (reinstalled/rebuilt in Docker)
+node_modules
+.next
+.swc
+
+# Development & test files
+__tests__
+*.test.*
+*.spec.*
+jest.config.*
+jest.setup.*
+.eslintrc*
+.env.local
+.env*.local
+
+# IDE & OS
+.vscode
+.idea
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docker (prevent recursive copy)
+Dockerfile
+.dockerignore
+
+# Docs
+README.md

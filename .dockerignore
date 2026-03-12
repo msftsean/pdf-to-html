@@ -1,0 +1,14 @@
+.git
+.venv
+__pycache__
+.pytest_cache
+tests/
+specs/
+docs/
+frontend/
+*.pyc
+.env*
+node_modules/
+.github/
+.squad/
+pdf-to-html/

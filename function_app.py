@@ -201,12 +201,21 @@ def file_upload(myblob: func.InputStream):
     # Guard: skip the 0-byte placeholder blob created by generate_sas_token.
     # The real content arrives later when the browser PUTs via the SAS URL,
     # which triggers this function again with actual data.
+    # NOTE: myblob.length can be None with Azurite, so we also read the
+    # stream and check actual data length as a fallback.
     if myblob.length is not None and myblob.length == 0:
         logger.info("Skipping 0-byte placeholder blob: %s", myblob.name)
         return
 
+    # Read file into memory early — also serves as a definitive 0-byte check
+    # when myblob.length is None (Azurite edge case).
+    file_data = myblob.read()
+    if len(file_data) == 0:
+        logger.info("Skipping 0-byte blob (length was None): %s", myblob.name)
+        return
+
     blob_name = myblob.name or "unknown"
-    logger.info("Processing file: %s (%d bytes)", blob_name, myblob.length or 0)
+    logger.info("Processing file: %s (%d bytes)", blob_name, len(file_data))
 
     # Derive document_id from blob filename (format: <uuid>.<ext>)
     base_filename = blob_name.rsplit("/", 1)[-1]
@@ -224,16 +233,16 @@ def file_upload(myblob: func.InputStream):
         props = blob_client.get_blob_properties()
         existing_meta = dict(props.metadata or {})
 
-        if "document_id" not in existing_meta or "status" not in existing_meta:
+        if "document_id" not in existing_meta or "status" not in existing_meta or "name" not in existing_meta:
             ext_for_meta = ("." + base_filename.rsplit(".", 1)[-1].lower()) if "." in base_filename else ""
-            logger.warning("Metadata missing for %s — reconstructing from blob name", blob_name)
+            logger.warning("Metadata missing/incomplete for %s — reconstructing from blob name", blob_name)
             reconstructed = {
                 "document_id": document_id,
                 "format": ALLOWED_EXTENSIONS.get(ext_for_meta, "pdf").value if ext_for_meta in ALLOWED_EXTENSIONS else "pdf",
-                "name": document_id,  # best we can do without original filename
+                "name": existing_meta.get("name") or existing_meta.get("original_filename", "").rsplit(".", 1)[0] or document_id,
                 "status": DocumentStatus.PROCESSING.value,
-                "size_bytes": str(myblob.length or 0),
-                "upload_timestamp": datetime.now(timezone.utc).isoformat(),
+                "size_bytes": str(len(file_data)),
+                "upload_timestamp": existing_meta.get("upload_timestamp") or datetime.now(timezone.utc).isoformat(),
                 "pages_processed": "0",
                 "has_review_flags": "False",
                 "blob_path": f"{_INPUT_CONTAINER}/{base_filename}",
@@ -243,7 +252,7 @@ def file_upload(myblob: func.InputStream):
                 "is_compliant": "",
                 "error_message": "",
                 "page_count": "",
-                "original_filename": base_filename,
+                "original_filename": existing_meta.get("original_filename") or base_filename,
             }
             blob_client.set_blob_metadata(reconstructed)
     except Exception:
@@ -262,8 +271,7 @@ def file_upload(myblob: func.InputStream):
         blob_service = None
 
     try:
-        # Read file into memory
-        file_data = myblob.read()
+        # file_data already read at the top of the function (0-byte guard)
 
         # --- T071: Check for password-protected documents ---
         ext = ("." + base_filename.rsplit(".", 1)[-1].lower()) if "." in base_filename else ""
@@ -869,6 +877,20 @@ def _is_azurite(connection_string: str) -> bool:
     )
 
 
+def _is_local_storage() -> bool:
+    """Return True when the app is configured for Azurite local storage."""
+    conn_str = os.environ.get("AzureWebJobsStorage", "")
+    return _is_azurite(conn_str)
+
+
+def _uses_identity_auth() -> bool:
+    """Return True when the app uses identity-based storage auth (no key)."""
+    conn_str = os.environ.get("AzureWebJobsStorage", "")
+    if conn_str and ("AccountKey=" in conn_str or "UseDevelopmentStorage=true" in conn_str):
+        return False
+    return bool(os.environ.get("AzureWebJobsStorage__accountName", ""))
+
+
 # Well-known Azurite storage credentials
 _AZURITE_ACCOUNT_NAME = "devstoreaccount1"
 _AZURITE_ACCOUNT_KEY = (
@@ -877,12 +899,14 @@ _AZURITE_ACCOUNT_KEY = (
 )
 
 
-def _extract_account_key(connection_string: str) -> str:
+def _extract_account_key(connection_string: str) -> str | None:
     """Parse AccountKey from an Azure Storage connection string.
 
     When the connection string is the Azurite shorthand
     ``UseDevelopmentStorage=true``, returns the well-known Azurite
     account key (there is no explicit AccountKey in that string).
+
+    Returns ``None`` if no account key is available (identity-based auth).
     """
     if _is_azurite(connection_string):
         return _AZURITE_ACCOUNT_KEY
@@ -890,26 +914,62 @@ def _extract_account_key(connection_string: str) -> str:
         part = part.strip()
         if part.lower().startswith("accountkey="):
             return part.split("=", 1)[1]
-    raise ValueError("AccountKey not found in connection string")
+    return None
+
+
+def _generate_sas_token_str(
+    blob_service: BlobServiceClient,
+    container: str,
+    blob_name: str,
+    permission: BlobSasPermissions,
+    expiry: datetime,
+) -> str:
+    """Generate a SAS token string using account key or user delegation key.
+
+    - **Local / Azurite:** Uses account key from connection string.
+    - **Azure (managed identity):** Requests a ``UserDelegationKey`` from the
+      blob service and generates a user-delegation SAS.
+    """
+    account_name = blob_service.account_name
+    conn_str = os.environ.get("AzureWebJobsStorage", "")
+    account_key = _extract_account_key(conn_str) if conn_str else None
+
+    if account_key:
+        # Account-key SAS (local / Azurite / connection-string deployments)
+        return generate_blob_sas(
+            account_name=account_name,
+            container_name=container,
+            blob_name=blob_name,
+            account_key=account_key,
+            permission=permission,
+            expiry=expiry,
+        )
+
+    # User-delegation SAS (identity-based auth on Azure)
+    start_time = datetime.now(timezone.utc) - timedelta(minutes=5)
+    delegation_key = blob_service.get_user_delegation_key(start_time, expiry)
+    return generate_blob_sas(
+        account_name=account_name,
+        container_name=container,
+        blob_name=blob_name,
+        user_delegation_key=delegation_key,
+        permission=permission,
+        expiry=expiry,
+    )
 
 
 def _generate_download_sas_url(
-    account_name: str,
-    account_key: str,
+    blob_service: BlobServiceClient,
     container: str,
     blob_name: str,
     expiry: datetime,
 ) -> str:
     """Generate a read-only SAS URL for downloading a blob."""
-    sas_token = generate_blob_sas(
-        account_name=account_name,
-        container_name=container,
-        blob_name=blob_name,
-        account_key=account_key,
-        permission=BlobSasPermissions(read=True),
-        expiry=expiry,
+    account_name = blob_service.account_name
+    sas_token = _generate_sas_token_str(
+        blob_service, container, blob_name,
+        BlobSasPermissions(read=True), expiry,
     )
-    conn_str = os.environ.get("AzureWebJobsStorage", "")
-    if _is_azurite(conn_str):
+    if _is_local_storage():
         return f"http://127.0.0.1:10000/{account_name}/{container}/{blob_name}?{sas_token}"
     return f"https://{account_name}.blob.core.windows.net/{container}/{blob_name}?{sas_token}"

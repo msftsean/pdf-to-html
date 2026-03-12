@@ -9,6 +9,19 @@ by Wonder-Woman — tests are written TDD-first.
 import pytest
 from unittest.mock import MagicMock, patch
 
+from fastapi.testclient import TestClient
+from app.main import app as fastapi_app
+
+
+# ---------------------------------------------------------------------------
+# FastAPI test client
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def client():
+    """FastAPI test client for API endpoint tests."""
+    return TestClient(fastapi_app)
+
 
 # ---------------------------------------------------------------------------
 # Model fixtures

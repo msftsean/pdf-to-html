@@ -1,8 +1,11 @@
-# Uncomment to enable Azure Monitor OpenTelemetry
-# Ref: aka.ms/functions-azure-monitor-python
-# azure-monitor-opentelemetry
+# Azure Container Apps backend
+fastapi
+uvicorn[standard]
+azure-storage-queue
+pydantic-settings
+httpx
 
-azure-functions
+# Core dependencies (unchanged)
 pymupdf
 azure-ai-documentintelligence
 azure-identity
@@ -10,6 +13,8 @@ azure-storage-blob
 python-docx
 python-pptx
 jinja2
+
+# Testing
 pytest
 pytest-cov
 pytest-asyncio
