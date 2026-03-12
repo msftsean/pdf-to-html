@@ -19,7 +19,10 @@ import requests
 # Constants
 # ---------------------------------------------------------------------------
 
-BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
+BASE_URL = os.environ.get(
+    "BASE_URL",
+    os.environ.get("DEPLOYMENT_URL", "http://localhost:8000"),
+)
 
 # Content-type mappings for supported file types
 _CONTENT_TYPES: dict[str, str] = {
@@ -113,14 +116,20 @@ def upload_file(
     sas_data = sas_resp.json()
     doc_id: str = sas_data["document_id"]
 
-    # Step 2 — upload the actual file
+    # Step 2 — upload the actual file (include metadata headers like the browser does)
+    upload_headers = {
+        "x-ms-blob-type": "BlockBlob",
+        "Content-Type": content_type,
+    }
+    metadata = sas_data.get("metadata")
+    if metadata and isinstance(metadata, dict):
+        for key, value in metadata.items():
+            upload_headers[f"x-ms-meta-{key}"] = str(value)
+
     upload_resp = requests.put(
         sas_data["upload_url"],
         data=file_bytes,
-        headers={
-            "x-ms-blob-type": "BlockBlob",
-            "Content-Type": content_type,
-        },
+        headers=upload_headers,
         timeout=timeout,
     )
     assert upload_resp.status_code == 201, (

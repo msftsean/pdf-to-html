@@ -169,7 +169,7 @@ class TestDigitalPdfQuality:
         for idx, table in enumerate(tables):
             if 'role="presentation"' in table:
                 continue  # layout tables exempt
-            th_tags = re.findall(r"<th[^>]*>", table, re.IGNORECASE)
+            th_tags = re.findall(r"<th[\s>][^>]*>", table, re.IGNORECASE)
             if th_tags:
                 for th in th_tags:
                     assert "scope=" in th.lower(), (
@@ -199,7 +199,7 @@ class TestComplexTablesQuality:
         assert len(tables) > 0, "No tables found in complex-tables output"
 
     def test_th_elements_with_scope(self):
-        th_tags = re.findall(r"<th[^>]*>", self.html, re.IGNORECASE)
+        th_tags = re.findall(r"<th[\s>][^>]*>", self.html, re.IGNORECASE)
         assert len(th_tags) > 0, "No <th> elements found"
         for th in th_tags:
             assert "scope=" in th.lower(), (
