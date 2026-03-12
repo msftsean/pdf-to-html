@@ -46,3 +46,14 @@
 - SC-002 and SC-003 (30s digital, 3min scanned) require Azure environment validation, not code changes
 - Code structure supports targets — actual performance depends on Azure Functions plan and Document Intelligence region latency
 - No low-hanging optimization fruit identified — codebase is already efficient
+
+### Repository Reorganization (Root Cleanup)
+- Moved 8 backend Python modules (`pdf_extractor.py`, `ocr_service.py`, `html_builder.py`, `models.py`, `status_service.py`, `wcag_validator.py`, `docx_extractor.py`, `pptx_extractor.py`) into `backend/` package with `__init__.py`
+- Cross-module imports within `backend/` use relative imports (e.g., `from .pdf_extractor import ...`)
+- External imports (function_app.py, tests, scripts) use absolute `from backend.X import Y` pattern
+- Moved `DEPLOYMENT.md` and `QUICKSTART.md` into `docs/` directory
+- Azure Functions constraints preserved: `function_app.py`, `host.json`, `local.settings.json`, `requirements.txt` all remain at root
+- `pdf-to-html/` subdirectory is NOT stale — contains project governance files (`.specify/memory/constitution.md`, `.squad/`, `.github/agents/`). All agent configurations reference it. Left in place for future consolidation.
+- Updated project structure sections in `README.md`, `docs/QUICKSTART.md`, and `.github/copilot-instructions.md`
+- Root reduced from 13 loose files to 6 (3 Azure-required + README + skills-lock.json + function_app.py)
+- All 174 tests pass after migration — zero regressions

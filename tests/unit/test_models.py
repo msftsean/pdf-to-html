@@ -17,7 +17,7 @@ from datetime import datetime
 
 import pytest
 
-from models import (
+from backend.models import (
     CellData,
     ConversionResult,
     Document,

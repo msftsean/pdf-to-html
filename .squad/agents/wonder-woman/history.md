@@ -10,6 +10,7 @@
 ## Learnings
 
 - **Blob metadata as state store:** Azure Blob metadata (string key-value pairs) works well for tracking document status without a database. All values must be strings — serialize ints, bools, and lists explicitly. Reconstruction via `Document.from_metadata()` handles the parsing.
+- **SAS PUT overwrites ALL blob metadata:** When a browser uploads via SAS URL (HTTP PUT), Azure Blob Storage replaces the entire blob — including metadata. The placeholder blob created by `generate_sas_token()` loses its `document_id`, `status`, and all tracking fields. Fix: (1) return metadata in the SAS response so the frontend can set `x-ms-meta-*` headers on the PUT, and (2) add a safety net in the blob trigger that detects missing metadata and reconstructs it from the blob name. (3) `_find_blob_by_id()` must fall back to name-prefix matching when metadata is absent.
 - **WCAG validation in Python is feasible for common rules:** A regex-based HTML parser catches 80%+ of server-side accessibility issues (missing alt, heading order, table headers, color contrast, form labels, empty links). Full axe-core validation still runs client-side.
 - **SAS token flow:** The upload API creates an empty placeholder blob with metadata *before* the browser uploads. This ensures the status service can track the document immediately. The browser then overwrites the blob content via the SAS URL, which triggers the existing blob trigger.
 - **Re-export pattern for models:** `models.py` imports and re-exports `TextSpan`, `ImageInfo`, `TableData`, `PageResult` from `pdf_extractor.py` so consumers can import from a single module. Avoids duplication while centralizing the data model.
@@ -82,4 +83,37 @@
 4. **Verified:** curl confirmed correct routes return 200, old routes return 404. All 171 backend tests pass.
 
 - **Frontend-backend route contracts must be verified early:** The original decisions doc (Decision 1) listed simplified route names (`/api/upload`, `/api/status`) but the backend implemented more RESTful names. Always verify actual route strings match between frontend and backend before integration testing.
+
+### Azurite SAS URL + Blob Trigger Bugfixes (Session 6)
+
+**Bugs Fixed:** 3 bugs causing "Conversion failed after 18ms" on file upload.
+
+1. **SAS upload URL wrong for Azurite (BUG 1):** `generate_sas_token` hardcoded `https://{account}.blob.core.windows.net/...` for the upload URL. Azurite listens at `http://127.0.0.1:10000/devstoreaccount1/...`. Added `_is_azurite()` helper that checks connection string for `UseDevelopmentStorage=true` or `127.0.0.1:10000`, and branches URL generation accordingly.
+
+2. **Blob trigger fires on 0-byte placeholder (BUG 2):** The SAS token endpoint creates a 0-byte placeholder blob with metadata so status tracking works immediately. But the blob trigger fires on this empty blob, crashing because there's no file data. Added a guard at the top of `file_upload()` that returns early when `myblob.length == 0`.
+
+3. **`_extract_account_key` fails on Azurite shorthand (BUG 3):** `UseDevelopmentStorage=true` has no `AccountKey=` segment. The function now returns the well-known Azurite account key (`Eby8vdM02x...`) when it detects an Azurite connection string.
+
+4. **Also fixed `_generate_download_sas_url`** — same Azurite URL pattern issue applied to download SAS URLs.
+
+- **Azurite URL format differs from Azure:** Azure Blob uses `https://{account}.blob.core.windows.net/{container}/{blob}`. Azurite uses `http://127.0.0.1:10000/{account}/{container}/{blob}`. Always branch URL construction with `_is_azurite()` when generating SAS URLs.
+- **Well-known Azurite credentials:** Account name is `devstoreaccount1`, account key is `Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==`. These are public constants, not secrets.
+- **0-byte blob guard pattern:** When using placeholder blobs for early status tracking, the blob trigger MUST skip them. Check `myblob.length == 0` before processing.
+
+- **Blob deletion output prefix derivation:** Output blobs are stored under `{document_id}/` in the converted container (HTML at `{document_id}/{document_id}.html`, images at `{document_id}/images/`). The `output_path` metadata field provides the canonical path; parse it to get the prefix, or fall back to `document_id + "/"` for documents that were never processed.
+- **Processing-state guard for deletion:** The DELETE endpoint checks document status via `get_status()` before calling `delete_document()`. Documents with status `"processing"` are refused (HTTP 409) to prevent data corruption mid-conversion. This is a pre-check — the actual deletion is wrapped in `_retry_blob_operation` for transient failures.
+- **Idempotent bulk deletion:** `delete_all_documents()` iterates and deletes blobs one by one, counting deletions per container. Each container's iteration is wrapped in try/except so a failure in one container doesn't block the other.
+
+### Download Endpoint → Frontend Contract Fix (Session 7)
+
+**Bug:** Preview button caused a 500 error. Frontend (`downloadService.ts`) destructures `{ download_url, filename, image_urls }` from the download endpoint response. Backend returned `{ html_url, name, assets }` — different field names. `download_url` resolved to `undefined`, iframe loaded `/undefined`, Next.js 500'd.
+
+**Fix:** Added three alias fields to the download endpoint response in `function_app.py` (line ~715):
+- `"download_url": html_url` — alias for `html_url`
+- `"filename": doc.name` — alias for `name`
+- `"image_urls": [url, ...]` — flat URL list extracted from `assets` objects
+
+All existing fields kept for backward compatibility. 174 tests pass, no regressions.
+
+- **Frontend-backend response field contracts:** Always verify that the field names the frontend destructures from API responses match exactly what the backend returns. Type interfaces in TS (`DownloadUrlResponse`) should mirror backend JSON keys 1:1. Alias fields (returning the same value under two names) are a safe backward-compatible fix when the mismatch is discovered late.
 

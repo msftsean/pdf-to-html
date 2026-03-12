@@ -21,8 +21,8 @@ import logging
 import re
 from dataclasses import dataclass
 
-from pdf_extractor import PageResult, TextSpan, ImageInfo, TableData
-from ocr_service import OcrPageResult, OcrTable, OcrTableCell
+from .pdf_extractor import PageResult, TextSpan, ImageInfo, TableData
+from .ocr_service import OcrPageResult, OcrTable, OcrTableCell
 
 logger = logging.getLogger(__name__)
 

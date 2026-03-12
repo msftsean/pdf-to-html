@@ -36,7 +36,7 @@ def main():
     logger.info("Input: %s (%d bytes)", pdf_path, len(pdf_data))
 
     # --- Step 1: Extract with PyMuPDF ---
-    from pdf_extractor import extract_pdf
+    from backend.pdf_extractor import extract_pdf
 
     t0 = time.perf_counter()
     pages, metadata = extract_pdf(pdf_data)
@@ -54,7 +54,7 @@ def main():
     if scanned_pages:
         endpoint = os.environ.get("DOCUMENT_INTELLIGENCE_ENDPOINT", "")
         if endpoint:
-            from ocr_service import ocr_pdf_pages
+            from backend.ocr_service import ocr_pdf_pages
 
             logger.info("Running OCR on %d scanned page(s)...", len(scanned_pages))
             t0 = time.perf_counter()
@@ -68,7 +68,7 @@ def main():
             )
 
     # --- Step 3: Build HTML ---
-    from html_builder import build_html
+    from backend.html_builder import build_html
 
     html_content, image_files = build_html(
         pages=pages,

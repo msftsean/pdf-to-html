@@ -15,7 +15,7 @@ import logging
 
 from pptx import Presentation
 
-from pdf_extractor import TextSpan, ImageInfo, TableData, PageResult
+from .pdf_extractor import TextSpan, ImageInfo, TableData, PageResult
 
 logger = logging.getLogger(__name__)
 

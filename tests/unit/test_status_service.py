@@ -22,8 +22,8 @@ from unittest.mock import MagicMock, patch, call
 
 import pytest
 
-from models import Document, DocumentStatus
-from status_service import get_status, get_summary, list_documents, set_status
+from backend.models import Document, DocumentStatus
+from backend.status_service import get_status, get_summary, list_documents, set_status, _find_blob_by_id
 
 
 # ---------------------------------------------------------------------------
@@ -312,3 +312,56 @@ class TestStatusTransitions:
         written = blob_client.set_blob_metadata.call_args[0][0]
         assert written["status"] == "failed"
         assert written["error_message"] == "OCR service timeout"
+
+
+# ---------------------------------------------------------------------------
+# _find_blob_by_id — metadata-missing fallback (SAS overwrite bug fix)
+# ---------------------------------------------------------------------------
+
+
+class TestFindBlobByIdFallback:
+    """Tests for _find_blob_by_id fallback when metadata is wiped by SAS upload."""
+
+    def test_finds_blob_with_metadata(self, blob_mocks):
+        """Fast path: blob has valid document_id metadata."""
+        blob_service, container_client, blob_client = blob_mocks
+
+        blob_item = _make_blob_item("doc-abc", status="pending")
+        # First call (prefix scan with metadata) returns match
+        container_client.list_blobs.return_value = [blob_item]
+
+        result = _find_blob_by_id(blob_service, "doc-abc")
+
+        assert result is not None
+        container_client.get_blob_client.assert_called_with("doc-abc.pdf")
+
+    def test_finds_blob_without_metadata_via_name_fallback(self, blob_mocks):
+        """Fallback: blob exists by name but has NO metadata (SAS overwrite)."""
+        blob_service, container_client, blob_client = blob_mocks
+
+        # First call (prefix + metadata): blob found but metadata doesn't match
+        blob_no_meta = MagicMock()
+        blob_no_meta.name = "doc-xyz.pdf"
+        blob_no_meta.metadata = {}  # wiped by SAS upload
+
+        # First list_blobs call (with include=["metadata"]) — no match on metadata
+        # Second list_blobs call (without include) — name-based fallback
+        container_client.list_blobs.side_effect = [
+            [blob_no_meta],  # prefix scan w/ metadata — doc_id not in metadata
+            [blob_no_meta],  # prefix scan w/o metadata — name match
+        ]
+
+        result = _find_blob_by_id(blob_service, "doc-xyz")
+
+        assert result is not None
+        container_client.get_blob_client.assert_called_with("doc-xyz.pdf")
+
+    def test_returns_none_when_no_blobs_exist(self, blob_mocks):
+        """Returns None when no blob matches at all."""
+        blob_service, container_client, blob_client = blob_mocks
+
+        container_client.list_blobs.return_value = []
+
+        result = _find_blob_by_id(blob_service, "nonexistent")
+
+        assert result is None

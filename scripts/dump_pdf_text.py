@@ -26,7 +26,7 @@ def main():
     with open(pdf_path, "rb") as f:
         pdf_data = f.read()
 
-    from pdf_extractor import extract_pdf
+    from backend.pdf_extractor import extract_pdf
     pages, metadata = extract_pdf(pdf_data)
 
     lines: list[str] = []

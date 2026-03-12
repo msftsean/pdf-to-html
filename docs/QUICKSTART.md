@@ -266,14 +266,18 @@ pytest tests/integration/ -v
 ```
 pdf-to-html/
 ├── function_app.py           # Azure Functions orchestrator
-├── pdf_extractor.py          # PDF → text/images/tables (PyMuPDF)
-├── docx_extractor.py         # Word document → structured content (python-docx)
-├── pptx_extractor.py         # PowerPoint → slide-by-slide content (python-pptx)
-├── ocr_service.py            # Azure Document Intelligence OCR client
-├── html_builder.py           # WCAG-compliant HTML generation
-├── wcag_validator.py         # Server-side WCAG 2.1 AA validation (7 Python rules)
-├── status_service.py         # Processing status tracking via blob metadata
-├── models.py                 # Pydantic data models
+├── requirements.txt          # Python dependencies
+├── host.json                 # Azure Functions config
+│
+├── backend/                  # Python backend package
+│   ├── pdf_extractor.py      # PDF → text/images/tables (PyMuPDF)
+│   ├── docx_extractor.py     # Word document → structured content (python-docx)
+│   ├── pptx_extractor.py     # PowerPoint → slide-by-slide content (python-pptx)
+│   ├── ocr_service.py        # Azure Document Intelligence OCR client
+│   ├── html_builder.py       # WCAG-compliant HTML generation
+│   ├── wcag_validator.py     # Server-side WCAG 2.1 AA validation (7 Python rules)
+│   ├── status_service.py     # Processing status tracking via blob metadata
+│   └── models.py             # Pydantic data models
 │
 ├── frontend/                 # Next.js 14 React app
 │   ├── app/                  # App Router (Next.js 13+)
@@ -282,10 +286,15 @@ pdf-to-html/
 │   └── styles/               # NCDIT Bootstrap styles
 │
 ├── tests/
-│   ├── unit/                 # Backend unit tests (137 tests)
+│   ├── unit/                 # Backend unit tests (174 tests)
 │   ├── integration/          # End-to-end tests
 │   ├── eval/                 # WCAG evaluation suite
 │   └── conftest.py           # Pytest fixtures
+│
+├── docs/                     # Project documentation
+│   ├── QUICKSTART.md         # This file
+│   ├── DEPLOYMENT.md         # Azure deployment guide
+│   └── runbook/              # Operations runbook
 │
 ├── scripts/
 │   ├── quickstart-check.sh   # Setup validation script
@@ -299,8 +308,6 @@ pdf-to-html/
 │       ├── tasks.md          # 79 implementation tasks
 │       └── contracts/        # API contracts (upload, status, download)
 │
-├── host.json                 # Azure Functions config
-├── requirements.txt          # Python dependencies
 ├── .env.example              # Environment variables template
 └── README.md                 # Project overview
 ```

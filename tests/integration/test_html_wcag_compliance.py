@@ -8,10 +8,10 @@ image alt, and landmark changes are effective.
 
 import pytest
 
-from html_builder import build_html, _enforce_heading_hierarchy
-from pdf_extractor import PageResult, TextSpan, ImageInfo, TableData
-from ocr_service import OcrPageResult, OcrSpan, OcrTable, OcrTableCell
-from wcag_validator import validate_html
+from backend.html_builder import build_html, _enforce_heading_hierarchy
+from backend.pdf_extractor import PageResult, TextSpan, ImageInfo, TableData
+from backend.ocr_service import OcrPageResult, OcrSpan, OcrTable, OcrTableCell
+from backend.wcag_validator import validate_html
 
 
 # ---------------------------------------------------------------------------

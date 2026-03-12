@@ -13,7 +13,7 @@ import re
 from docx import Document
 from docx.oxml.ns import qn
 
-from pdf_extractor import TextSpan, ImageInfo, TableData, PageResult
+from .pdf_extractor import TextSpan, ImageInfo, TableData, PageResult
 
 logger = logging.getLogger(__name__)
 

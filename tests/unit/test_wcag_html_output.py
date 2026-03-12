@@ -12,10 +12,10 @@ Tests verify that generated HTML meets all accessibility requirements:
 """
 
 import pytest
-from html_builder import build_html
-from pdf_extractor import PageResult, TextSpan, ImageInfo, TableData
-from wcag_validator import validate_html
-from models import Severity
+from backend.html_builder import build_html
+from backend.pdf_extractor import PageResult, TextSpan, ImageInfo, TableData
+from backend.wcag_validator import validate_html
+from backend.models import Severity
 
 
 def test_skip_navigation_link():

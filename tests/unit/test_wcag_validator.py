@@ -17,8 +17,8 @@ Validates:
 
 import pytest
 
-from models import Severity, WcagViolation
-from wcag_validator import validate_html
+from backend.models import Severity, WcagViolation
+from backend.wcag_validator import validate_html
 
 
 # ---------------------------------------------------------------------------

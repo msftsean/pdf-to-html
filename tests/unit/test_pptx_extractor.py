@@ -20,8 +20,8 @@ import pytest
 from pptx import Presentation
 from pptx.util import Inches, Pt
 
-from pptx_extractor import extract_pptx, SPEAKER_NOTES_FONT
-from pdf_extractor import TextSpan, ImageInfo, TableData, PageResult
+from backend.pptx_extractor import extract_pptx, SPEAKER_NOTES_FONT
+from backend.pdf_extractor import TextSpan, ImageInfo, TableData, PageResult
 
 
 # ---------------------------------------------------------------------------

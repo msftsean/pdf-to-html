@@ -2,7 +2,8 @@
 
 **Author:** Cyborg (DevOps & Infrastructure)  
 **Date:** 2026-03-12  
-**Status:** Partially Implemented (blocked on RBAC)
+**Status:** Fully Implemented (Cloudforce Subscription)
+**Last Updated:** 2026-03-12 (Session 3 - Backend Deployment)
 
 ## Context
 
@@ -32,9 +33,38 @@ The deployment SPN has Contributor role only. It cannot:
 
 **Action Required:** An admin with Owner role must run `scripts/assign-storage-rbac.sh` to assign the required RBAC roles to the Function App's managed identity.
 
+## Latest Deployment (Session 3 - 2026-03-12)
+
+### Backend Deployment Success
+- **Command:** `func azure functionapp publish func-pdftohtml-331ef3 --python`
+- **Build Time:** ~6.5 minutes (Oryx remote build + artifact transfer)
+- **Deployment Size:** 149.68 MB uploaded → 703 MB final zip with dependencies
+- **Backend Package Structure:** Code reorganized into `backend/` package deploys successfully
+- **Function Endpoints Verified:** file_upload, generate_sas_token, get_document_status, get_download_url
+- **Status Endpoint:** ✅ Working (GET /api/documents/status returns empty document list)
+- **CORS Configuration:** ✅ Verified for both Function App and Blob Storage
+
+### Known Issue: Cold Start Latency
+- Upload/SAS token endpoints exhibit 30+ second cold start on B1 Linux plan
+- Status endpoint warms up faster (~5-10 seconds)
+- **Root Cause:** Azure Functions on B1 plan with Python runtime requires module import (pymupdf, azure-ai-documentintelligence, etc.)
+- **Mitigation Options:**
+  - Premium plan (always warm, higher cost)
+  - Application Insights monitoring
+  - Keep-alive pings
+  - For now, acceptable for development/demo
+
+### Deployment Verification Checklist
+1. ✅ Remote build completed successfully
+2. ✅ Status endpoint responding
+3. ✅ Function list populated (4 functions)
+4. ✅ CORS configured correctly
+5. ✅ Frontend restarted
+6. ⚠️ Upload endpoints have cold start latency (expected)
+
 ## Impact on Other Agents
 
-- **Wonder-Woman:** Must update `function_app.py` to support `DefaultAzureCredential` for blob access (not just connection string).
-- **Flash:** No frontend changes needed. Backend URL is `https://func-pdftohtml-284728.azurewebsites.net`.
-- **Aquaman:** Integration tests should support both connection string and managed identity auth modes.
-- **Batman:** Review the B1 plan decision and managed identity architecture.
+- **Wonder-Woman:** Backend `backend/` package structure works perfectly with Azure deployment. No code changes needed.
+- **Flash:** Frontend restarted. Should work with deployed backend. Be aware of potential cold start on first upload attempt.
+- **Aquaman:** Cold start latency may affect initial test runs. Recommend testing after warmup or adding retry logic.
+- **Batman:** Deployment successful. Monitor cold start metrics if it becomes a user experience issue.

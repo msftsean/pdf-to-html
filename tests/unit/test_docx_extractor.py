@@ -22,8 +22,8 @@ from docx.shared import Pt, Inches
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
-from docx_extractor import extract_docx
-from pdf_extractor import TextSpan, ImageInfo, TableData, PageResult
+from backend.docx_extractor import extract_docx
+from backend.pdf_extractor import TextSpan, ImageInfo, TableData, PageResult
 
 
 # ---------------------------------------------------------------------------

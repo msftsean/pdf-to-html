@@ -19,6 +19,7 @@ export interface SasTokenResponse {
   document_id: string;
   upload_url: string;
   expires_at: string;
+  metadata?: Record<string, string>;
 }
 
 export interface UploadProgress {
@@ -98,7 +99,8 @@ export async function requestSasToken(file: File): Promise<SasTokenResponse> {
 export function uploadFile(
   file: File,
   sasUrl: string,
-  onProgress?: (progress: UploadProgress) => void
+  onProgress?: (progress: UploadProgress) => void,
+  metadata?: Record<string, string>
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -146,6 +148,14 @@ export function uploadFile(
     xhr.open('PUT', sasUrl);
     xhr.setRequestHeader('x-ms-blob-type', 'BlockBlob');
     xhr.setRequestHeader('Content-Type', file.type);
+
+    // Preserve document metadata on the blob (SAS upload overwrites placeholder)
+    if (metadata) {
+      for (const [key, value] of Object.entries(metadata)) {
+        xhr.setRequestHeader(`x-ms-meta-${key}`, value);
+      }
+    }
+
     xhr.timeout = 5 * 60 * 1000; // 5-minute timeout
     xhr.send(file);
   });
@@ -161,10 +171,10 @@ export async function uploadDocument(
   onProgress?: (progress: UploadProgress) => void
 ): Promise<string> {
   // Step 1 — get SAS token
-  const { document_id, upload_url } = await requestSasToken(file);
+  const { document_id, upload_url, metadata } = await requestSasToken(file);
 
-  // Step 2 — upload to blob storage
-  await uploadFile(file, upload_url, onProgress);
+  // Step 2 — upload to blob storage (include metadata to preserve it on overwrite)
+  await uploadFile(file, upload_url, onProgress, metadata);
 
   return document_id;
 }

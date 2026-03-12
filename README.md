@@ -317,16 +317,18 @@ This project uses [GitHub Spec Kit](https://github.com/github/spec-kit) for spec
 ```
 pdf-to-html/
 ├── 📄 function_app.py          # Azure Functions orchestrator (blob trigger, HTTP APIs)
-├── 📄 pdf_extractor.py         # PDF → text/images/tables (PyMuPDF)
-├── 📝 docx_extractor.py        # Word document extraction (python-docx)
-├── 📊 pptx_extractor.py        # PowerPoint extraction (python-pptx)
-├── 🔍 ocr_service.py           # Azure Document Intelligence OCR client
-├── ♿ html_builder.py           # WCAG-compliant HTML generation
-├── ✅ wcag_validator.py         # Server-side WCAG 2.1 AA validation (7 rules)
-├── 📊 status_service.py        # Document processing status tracking
-├── 📋 models.py                # Pydantic data models
 ├── 📦 requirements.txt         # Python dependencies
 ├── ⚙️ host.json                # Azure Functions configuration
+│
+├── 🔧 backend/                 # Python backend package
+│   ├── 📄 pdf_extractor.py     # PDF → text/images/tables (PyMuPDF)
+│   ├── 📝 docx_extractor.py    # Word document extraction (python-docx)
+│   ├── 📊 pptx_extractor.py    # PowerPoint extraction (python-pptx)
+│   ├── 🔍 ocr_service.py       # Azure Document Intelligence OCR client
+│   ├── ♿ html_builder.py       # WCAG-compliant HTML generation
+│   ├── ✅ wcag_validator.py     # Server-side WCAG 2.1 AA validation (7 rules)
+│   ├── 📊 status_service.py    # Document processing status tracking
+│   └── 📋 models.py            # Pydantic data models
 │
 ├── 🌐 frontend/                # Next.js 14 React app
 │   ├── app/                    # App Router (Next.js 13+)
@@ -335,10 +337,15 @@ pdf-to-html/
 │   └── styles/                 # NCDIT Digital Commons design tokens
 │
 ├── 🧪 tests/
-│   ├── unit/                   # Backend unit tests (137 tests)
+│   ├── unit/                   # Backend unit tests (174 tests)
 │   ├── integration/            # End-to-end pipeline tests
 │   ├── eval/                   # WCAG evaluation suite
 │   └── conftest.py             # Pytest fixtures
+│
+├── 📖 docs/                    # Project documentation
+│   ├── QUICKSTART.md           # Development setup guide
+│   ├── DEPLOYMENT.md           # Azure deployment guide
+│   └── runbook/                # Operations runbook
 │
 ├── 🤖 .github/workflows/       # CI/CD workflows (eval.yml, squad automation)
 ├── 🦸 .squad/                  # Squad (Justice League) config
@@ -347,7 +354,6 @@ pdf-to-html/
 ├── 📜 pdf-to-html/.specify/    # Spec Kit memory (constitution.md)
 ├── 🔧 scripts/                 # Automation scripts (quickstart-check, evals)
 ├── 📖 README.md                # This file
-├── 🚀 QUICKSTART.md            # Development setup guide
 └── ⚙️ .env.example              # Environment variables template
 ```
 

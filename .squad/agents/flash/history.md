@@ -93,3 +93,65 @@
    - ✅ Accessibility: Pass (jest-axe validates all components)
 
 
+
+- **2025-07-18:** Updated GovBanner component per Sean's request:
+  - Changed banner from "official" to "UNofficial...for demo purposes only"
+  - Swapped navy background (#003366) to amber (#d4a017) with dark text for demo visibility
+  - Replaced "How you know" dropdown with "Learn more" — now explains the PDF-to-HTML converter demo and warns against uploading sensitive docs
+  - Updated all aria-labels and JSDoc to reflect demo/disclaimer purpose
+  - All 9 accessibility tests pass (including axe audit of GovBanner)
+
+### Rendering Issue Fix (Session 5)
+
+**Date:** 2026-03-12  
+**Issue:** User reported site "rendered poorly" after GovBanner changes
+
+**Root Cause:**  
+Styled-jsx styles in client components (`GovBanner.tsx`, `NCHeader.tsx`, `NCFooter.tsx`) weren't being included during server-side rendering (SSR). The styles exist in the JavaScript bundles and are injected client-side, causing a flash of unstyled content (FOUC) where the page loads without critical styles like the amber banner background (#d4a017).
+
+**Solution:**  
+1. **Added critical component styles to `globals.css`** — Extracted all styled-jsx rules from GovBanner, NCHeader, and NCFooter and added them to `frontend/styles/globals.css`. This ensures the styles are present in the initial SSR HTML with zero delay.
+
+2. **Kept styled-jsx in components** — The `<style jsx>` blocks remain in the components for enhanced scoping and as a secondary layer, but the base styles now load immediately via globals.css.
+
+3. **Cleared `.next` cache and rebuilt** — Deleted `/workspaces/pdf-to-html/frontend/.next` directory and ran `npm run build` to ensure Next.js picked up the new globals.css styles.
+
+**Verification:**  
+- ✅ Production build CSS (`c6b45b825cf623c4.css`) contains `.gov-banner{background-color:#d4a017`
+- ✅ All Bootstrap utility classes (`container`, `d-flex`, `align-items-center`, etc.) are present
+- ✅ GovBanner, NCHeader, and NCFooter components render with proper styling
+- ✅ No FOUC — styles load immediately with the initial HTML
+
+**Files Modified:**  
+- `frontend/styles/globals.css` — Added 200+ lines of component styles (GovBanner, NCHeader, NCFooter)
+- `frontend/next.config.mjs` — No substantive changes needed (reverted test config)
+
+**Lesson Learned:**  
+Next.js 14 App Router with client components (`'use client'`) doesn't server-render styled-jsx styles by default. For critical layout/branding components, either:
+1. Use globals.css for the base styles (chosen solution)
+2. Convert to Server Components (not possible when using hooks like `useState`)
+3. Use CSS Modules instead of styled-jsx
+4. Accept the FOUC and optimize for client-side hydration speed
+
+The team decision to use styled-jsx remains valid — we're just layering it on top of globals.css for critical styles rather than relying on it exclusively.
+
+### Document Deletion UI (Session 6)
+
+**Date:** 2025-07-18  
+**Tasks Completed:** T005, T006, T007, T008, T009, T010, T011, T012
+
+1. **deleteService.ts (T005)** — Created `frontend/services/deleteService.ts` with `deleteDocument()` and `deleteAllDocuments()` functions. Uses same `API_BASE` pattern as statusService.ts. Maps HTTP 409 to friendly "cannot delete while processing" message, 404 to "already deleted" message. Exports `DeleteResponse` and `DeleteAllResponse` interfaces.
+
+2. **ConfirmDialog.tsx (T006)** — Built `frontend/components/ConfirmDialog.tsx` as a WCAG 2.1 AA accessible modal. Features: focus trap (Tab cycles within dialog), Escape to close, backdrop click to close, body scroll lock, `role="dialog"` + `aria-modal="true"` + `aria-labelledby`, spinner on confirm button during loading, Bootstrap 5 markup, NCDIT CSS variables, slide-up animation. Focus defaults to Cancel button on open (safe choice).
+
+3. **ProgressTracker delete buttons (T007)** — Added `onDelete` prop to ProgressTrackerProps. Each document row now shows a delete button (🗑️ Delete). For completed docs, it appears alongside Preview/Download. For pending/failed docs, it stands alone. For processing docs, it's rendered disabled with `title="Cannot delete while processing"` and `aria-disabled="true"`.
+
+4. **Individual delete wiring (T008)** — Dashboard page manages `deleteTarget`, `isDeleting`, `deleteError` state. Opening the delete dialog captures the trigger button ref. On confirm: calls deleteService, optimistically removes from state, decrements the matching summary counter. On cancel/confirm: returns focus to the trigger button. Error alert is dismissible.
+
+5. **Clear All (T009)** — "🗑️ Clear All" button appears in the toolbar next to Refresh when documents.length > 0. Opens a second ConfirmDialog with "Delete All" confirm label and document count in the message. On success: clears documents array, resets summary to zeros, stops polling. Focus returns to the Clear All button on close.
+
+6. **aria-live announcements (T010)** — Added `<div aria-live="assertive" aria-atomic="true">` for delete outcomes. Announcements: "{name} has been deleted.", "All documents have been deleted.", or failure messages. Auto-clears after 5 seconds.
+
+7. **Focus management (T012)** — Captured trigger element refs (`deleteTriggerRef`, `clearAllTriggerRef`) before opening dialogs. After dialog closes (confirm or cancel), focus returns to the original trigger button via `setTimeout`. ConfirmDialog implements Tab trap within its own focusable elements.
+
+8. **Build verified** — `npx next build` succeeds. Dashboard page grew from 15.9 kB to 18 kB (ConfirmDialog + deleteService). No type errors, no lint warnings. All 6 static pages generated successfully.

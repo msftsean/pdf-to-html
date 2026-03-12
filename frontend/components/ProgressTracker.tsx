@@ -15,6 +15,8 @@ export interface ProgressTrackerProps {
   onRetry?: (documentId: string) => void;
   /** Callback fired when the user clicks the preview button on a completed doc. */
   onPreview?: (doc: DocumentStatus) => void;
+  /** Callback fired when the user clicks the delete button on a document row. */
+  onDelete?: (documentId: string, documentName: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -118,6 +120,7 @@ export default function ProgressTracker({
   documents,
   onRetry,
   onPreview,
+  onDelete,
 }: ProgressTrackerProps) {
   const handleRetry = useCallback(
     (documentId: string) => {
@@ -287,6 +290,18 @@ export default function ProgressTracker({
                         format="zip"
                         variant="outline"
                       />
+                      {onDelete && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger progress-tracker__delete-btn ms-auto"
+                          onClick={() => onDelete(doc.document_id, doc.name)}
+                          aria-label={`Delete ${doc.name}`}
+                          data-testid={`delete-btn-${doc.document_id}`}
+                        >
+                          <span aria-hidden="true" className="me-1">🗑️</span>
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -303,17 +318,65 @@ export default function ProgressTracker({
                         {doc.error_message || 'An unexpected error occurred.'}
                       </span>
                     </div>
-                    {onRetry && (
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-danger progress-tracker__retry-btn"
-                        onClick={() => handleRetry(doc.document_id)}
-                        aria-label={`Retry conversion of ${doc.name}`}
-                        data-testid={`retry-btn-${doc.document_id}`}
-                      >
-                        🔄 Retry
-                      </button>
-                    )}
+                    <div className="d-flex align-items-center gap-2">
+                      {onRetry && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger progress-tracker__retry-btn"
+                          onClick={() => handleRetry(doc.document_id)}
+                          aria-label={`Retry conversion of ${doc.name}`}
+                          data-testid={`retry-btn-${doc.document_id}`}
+                        >
+                          🔄 Retry
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger progress-tracker__delete-btn"
+                          onClick={() => onDelete(doc.document_id, doc.name)}
+                          aria-label={`Delete ${doc.name}`}
+                          data-testid={`delete-btn-${doc.document_id}`}
+                        >
+                          <span aria-hidden="true" className="me-1">🗑️</span>
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Delete button for pending status */}
+                {doc.status === 'pending' && onDelete && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger progress-tracker__delete-btn"
+                      onClick={() => onDelete(doc.document_id, doc.name)}
+                      aria-label={`Delete ${doc.name}`}
+                      data-testid={`delete-btn-${doc.document_id}`}
+                    >
+                      <span aria-hidden="true" className="me-1">🗑️</span>
+                      Delete
+                    </button>
+                  </div>
+                )}
+
+                {/* Delete button for processing status — disabled with explanation */}
+                {doc.status === 'processing' && onDelete && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger progress-tracker__delete-btn"
+                      disabled
+                      aria-disabled="true"
+                      title="Cannot delete while processing"
+                      aria-label={`Delete ${doc.name} — cannot delete while processing`}
+                      data-testid={`delete-btn-${doc.document_id}`}
+                    >
+                      <span aria-hidden="true" className="me-1">🗑️</span>
+                      Delete
+                    </button>
                   </div>
                 )}
               </div>
@@ -364,6 +427,22 @@ export default function ProgressTracker({
           background-color: var(--nc-action-blue, #1e79c8);
           border-color: var(--nc-action-blue, #1e79c8);
           color: var(--nc-white, #ffffff);
+        }
+        .progress-tracker__delete-btn {
+          font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
+          font-size: 0.8125rem;
+          font-weight: 600;
+          border-color: var(--nc-danger, #dc3545);
+          color: var(--nc-danger, #dc3545);
+        }
+        .progress-tracker__delete-btn:hover:not(:disabled),
+        .progress-tracker__delete-btn:focus-visible:not(:disabled) {
+          background-color: var(--nc-danger, #dc3545);
+          color: var(--nc-white, #ffffff);
+        }
+        .progress-tracker__delete-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
         .min-w-0 {
           min-width: 0;

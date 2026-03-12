@@ -46,7 +46,7 @@ python scripts/render_report.py --input tests/eval/results/eval-report.json --ou
 
 ### Local Development
 
-Requires three processes: Azurite (blob emulator on :10000), Azure Functions (`func start` on :7071), and Next.js (`npm run dev` on :3000). See `QUICKSTART.md` for full setup.
+Requires three processes: Azurite (blob emulator on :10000), Azure Functions (`func start` on :7071), and Next.js (`npm run dev` on :3000). See `docs/QUICKSTART.md` for full setup.
 
 ## Architecture
 
@@ -58,13 +58,13 @@ This is a **stateless, blob-triggered document conversion pipeline** deployed as
 2. **Blob trigger** (`function_app.py:file_upload`): Fires on new blobs in the `files/` container
 3. **Extraction**: Format-specific extractor runs → returns `list[PageResult]`
 4. **OCR**: Scanned pages (text < 20 chars) are sent to Azure Document Intelligence
-5. **HTML generation**: `html_builder.build_html()` produces WCAG 2.1 AA compliant HTML
-6. **Validation**: `wcag_validator.validate_html()` runs 7 server-side compliance checks
+5. **HTML generation**: `backend.html_builder.build_html()` produces WCAG 2.1 AA compliant HTML
+6. **Validation**: `backend.wcag_validator.validate_html()` runs 7 server-side compliance checks
 7. **Output**: HTML + image assets stored to `converted/` container; status written as blob metadata
 
 ### Extractor Interface
 
-All three extractors share the same function signature and return type — `html_builder` is format-agnostic:
+All three extractors (in `backend/`) share the same function signature and return type — `html_builder` is format-agnostic:
 
 ```python
 def extract_pdf(file_data: bytes) -> tuple[list[PageResult], dict]:
@@ -87,7 +87,7 @@ Next.js 14 App Router with NCDIT Digital Commons branding (Bootstrap 5). Uploads
 - **Error handling**: Catch specific Azure exceptions (`ServiceRequestError`, `HttpResponseError`). OCR failures return stub results with `confidence=0.0, needs_review=True` rather than crashing the pipeline.
 - **Private functions**: Prefixed with `_` (e.g., `_get_blob_service_client()`).
 - **Constants**: Module-level `UPPER_CASE` with `_` prefix for internal ones.
-- **Data models**: Pydantic-style dataclasses in `models.py`. Import shared types (`PageResult`, `TextSpan`, `ImageInfo`, `TableData`) from `models.py`, not directly from extractors.
+- **Data models**: Pydantic-style dataclasses in `backend/models.py`. Import shared types (`PageResult`, `TextSpan`, `ImageInfo`, `TableData`) from `backend.models`, not directly from extractors.
 - **Test organization**: Class-based grouping (`class TestDocument:`, `class TestHeadingOrder:`).
 
 ### TypeScript / React
@@ -114,4 +114,36 @@ This project uses Squad (Justice League theme) for AI-assisted development. Agen
 
 ### Spec Kit
 
-Feature specifications live in `specs/001-sean/` (spec, plan, tasks, contracts, research, data model). The project constitution is at `pdf-to-html/.specify/memory/constitution.md`.
+Feature specifications live in `specs/` with numbered subdirectories:
+- `specs/001-sean/` — WCAG Document-to-HTML Converter (core pipeline, spec, plan, tasks, contracts, research, data model)
+- `specs/002-classification-engine/` — Document Classification Engine (pre-processing gate, heuristic classification, warning UX)
+- `specs/004-container-apps-migration/` — Azure Container Apps Migration (FastAPI backend, KEDA queue worker, docker-compose local dev)
+
+The project constitution is at `pdf-to-html/.specify/memory/constitution.md`.
+
+### Container Apps Migration (004)
+
+The migration from Azure Functions to Azure Container Apps introduces:
+
+- **Backend**: `app/main.py` (FastAPI + Uvicorn replacing `function_app.py`), `app/worker.py` (queue consumer replacing blob trigger)
+- **Infrastructure**: Event Grid → Storage Queue → KEDA scaler pattern for file processing
+- **Local dev**: `docker-compose.yml` with Azurite, backend, worker, and frontend services
+- **Containers**: `Dockerfile.backend` (Python 3.12-slim), `frontend/Dockerfile` (Node 20 Alpine multi-stage)
+- **IaC**: `infra/` directory with Bicep modules for Container Apps, ACR, Event Grid
+- **Key principle**: `backend/` package is completely unchanged — zero Azure Functions SDK dependencies exist in it
+- **API contracts**: All HTTP endpoints maintain identical request/response schemas
+- **Dependencies changed**: `requirements.txt` adds `fastapi`, `uvicorn`, `azure-storage-queue`; removes `azure-functions`
+
+### Document Classification Engine (002)
+
+The classification engine is a **pre-processing gate** that analyzes documents before conversion begins. Key design decisions:
+
+- **Module**: `classification_service.py` — standalone, independently testable, no Azure Functions runtime dependency
+- **Entry point**: `classify_document(file_data: bytes, file_extension: str) -> DocumentClassification`
+- **Data model**: `DocumentClassification` dataclass in `models.py` with `document_type`, `suitability_score`, `confidence`, `warning_message`, `metadata`
+- **Document types**: `report`, `whitepaper`, `form`, `brochure`, `newsletter`, `slide_deck`, `unknown` (enum `DocumentType`)
+- **Heuristic signals**: text density (0.35 weight), image ratio (0.30), object count (0.20), page uniformity (0.15)
+- **Threshold**: 0.70 suitability score — below triggers a warning, never blocks conversion
+- **Storage**: Classification results stored as blob metadata (same pattern as `status_service.py`)
+- **Integration**: Runs in `function_app.py` after password check, before extraction; wrapped in try/except for graceful degradation
+- **Frontend**: `ClassificationWarning.tsx` component renders warnings in the status dashboard

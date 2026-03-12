@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 # Test imports
 import function_app
-from html_builder import _detect_language
+from backend.html_builder import _detect_language
 
 
 # ---------------------------------------------------------------------------

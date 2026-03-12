@@ -141,3 +141,4 @@ __azurite_db*__.json
 # StaticCrypt test artifacts
 .staticrypt.json
 encrypted/
+.env.cloudforce

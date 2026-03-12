@@ -14,7 +14,7 @@ from enum import Enum
 from typing import Any
 
 # Re-export existing extraction dataclasses so consumers can import from one place
-from pdf_extractor import TextSpan, ImageInfo, TableData, PageResult  # noqa: F401
+from .pdf_extractor import TextSpan, ImageInfo, TableData, PageResult  # noqa: F401
 
 
 # ---------------------------------------------------------------------------

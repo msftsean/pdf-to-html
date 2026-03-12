@@ -18,8 +18,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from models import Document, DocumentStatus
-from status_service import (
+from backend.models import Document, DocumentStatus
+from backend.status_service import (
     get_batch_summary,
     get_status,
     list_documents,

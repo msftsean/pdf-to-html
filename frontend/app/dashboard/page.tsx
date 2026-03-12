@@ -4,13 +4,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import ProgressTracker from '@/components/ProgressTracker';
 import DocumentPreview from '@/components/DocumentPreview';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import {
   startPolling,
   type StatusResponse,
   type StatusSummary,
   type DocumentStatus,
 } from '@/services/statusService';
-import { getDownloadUrl } from '@/services/downloadService';
+import { deleteDocument, deleteAllDocuments } from '@/services/deleteService';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -83,6 +84,20 @@ export default function DashboardPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+
+  // Delete state (T008 — individual delete)
+  const [deleteTarget, setDeleteTarget] = useState<{id: string; name: string} | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
+
+  // Clear All state (T009 — bulk delete)
+  const [showClearAll, setShowClearAll] = useState(false);
+  const [isClearingAll, setIsClearingAll] = useState(false);
+  const clearAllTriggerRef = useRef<HTMLButtonElement | null>(null);
+
+  // aria-live announcement (T010)
+  const [announcement, setAnnouncement] = useState('');
 
   // -----------------------------------------------------------------------
   // Polling lifecycle (T052)
@@ -157,22 +172,12 @@ export default function DashboardPage() {
   // Preview handler (T063)
   // -----------------------------------------------------------------------
 
-  const handlePreview = useCallback(async (doc: DocumentStatus) => {
+  const handlePreview = useCallback((doc: DocumentStatus) => {
     setPreviewDoc(doc);
-    setPreviewLoading(true);
     setPreviewError(null);
-    setPreviewUrl(null);
-
-    try {
-      const { download_url } = await getDownloadUrl(doc.document_id);
-      setPreviewUrl(download_url);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to load preview URL.';
-      setPreviewError(message);
-    } finally {
-      setPreviewLoading(false);
-    }
+    setPreviewLoading(false);
+    // Use the server-side proxy so the browser never hits Azurite directly
+    setPreviewUrl(`/api/preview/${doc.document_id}`);
   }, []);
 
   const handleClosePreview = useCallback(() => {
@@ -180,6 +185,150 @@ export default function DashboardPage() {
     setPreviewUrl(null);
     setPreviewError(null);
     setPreviewLoading(false);
+  }, []);
+
+  // -----------------------------------------------------------------------
+  // Announce helper (T010) — sets aria-live text, clears after 5s
+  // -----------------------------------------------------------------------
+
+  const announce = useCallback((text: string) => {
+    setAnnouncement(text);
+    const timer = setTimeout(() => setAnnouncement(''), 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // -----------------------------------------------------------------------
+  // Individual delete handlers (T008)
+  // -----------------------------------------------------------------------
+
+  const handleDeleteRequest = useCallback(
+    (documentId: string, name: string) => {
+      // Capture the trigger element for focus return (T012)
+      const activeEl = document.activeElement;
+      if (activeEl instanceof HTMLButtonElement) {
+        deleteTriggerRef.current = activeEl;
+      }
+      setDeleteTarget({ id: documentId, name });
+      setDeleteError(null);
+    },
+    []
+  );
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      await deleteDocument(deleteTarget.id);
+
+      // Optimistically remove from state
+      setDocuments((prev) =>
+        prev.filter((d) => d.document_id !== deleteTarget.id)
+      );
+      setSummary((prev) => {
+        const doc = documents.find((d) => d.document_id === deleteTarget.id);
+        if (!doc) return prev;
+        return {
+          ...prev,
+          total: Math.max(0, prev.total - 1),
+          [doc.status]: Math.max(0, (prev[doc.status] || 0) - 1),
+        };
+      });
+
+      announce(`${deleteTarget.name} has been deleted.`);
+      setDeleteTarget(null);
+
+      // Return focus to trigger (T012)
+      setTimeout(() => {
+        deleteTriggerRef.current?.focus();
+        deleteTriggerRef.current = null;
+      }, 100);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Failed to delete document. Please try again.';
+      setDeleteError(message);
+      announce('Failed to delete document. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [deleteTarget, documents, announce]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteTarget(null);
+    setDeleteError(null);
+
+    // Return focus to trigger (T012)
+    setTimeout(() => {
+      deleteTriggerRef.current?.focus();
+      deleteTriggerRef.current = null;
+    }, 100);
+  }, []);
+
+  // -----------------------------------------------------------------------
+  // Clear All handlers (T009)
+  // -----------------------------------------------------------------------
+
+  const handleClearAllRequest = useCallback(() => {
+    const activeEl = document.activeElement;
+    if (activeEl instanceof HTMLButtonElement) {
+      clearAllTriggerRef.current = activeEl;
+    }
+    setShowClearAll(true);
+    setDeleteError(null);
+  }, []);
+
+  const handleClearAllConfirm = useCallback(async () => {
+    setIsClearingAll(true);
+    setDeleteError(null);
+
+    try {
+      await deleteAllDocuments();
+
+      // Clear all documents from state
+      setDocuments([]);
+      setSummary({
+        total: 0,
+        pending: 0,
+        processing: 0,
+        completed: 0,
+        failed: 0,
+      });
+
+      // Stop polling — nothing to track
+      setIsPolling(false);
+
+      announce('All documents have been deleted.');
+      setShowClearAll(false);
+
+      // Return focus to trigger (T012)
+      setTimeout(() => {
+        clearAllTriggerRef.current?.focus();
+        clearAllTriggerRef.current = null;
+      }, 100);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Failed to delete all documents. Please try again.';
+      setDeleteError(message);
+      announce('Failed to delete all documents. Please try again.');
+    } finally {
+      setIsClearingAll(false);
+    }
+  }, [announce]);
+
+  const handleClearAllCancel = useCallback(() => {
+    setShowClearAll(false);
+
+    // Return focus to trigger (T012)
+    setTimeout(() => {
+      clearAllTriggerRef.current?.focus();
+      clearAllTriggerRef.current = null;
+    }, 100);
   }, []);
 
   // -----------------------------------------------------------------------
@@ -295,7 +444,19 @@ export default function DashboardPage() {
         </section>
 
         {/* ----------------------------------------------------------------
-            Polling Status Indicator
+            aria-live announcements for delete outcomes (T010)
+            ---------------------------------------------------------------- */}
+        <div
+          className="visually-hidden"
+          aria-live="assertive"
+          aria-atomic="true"
+          data-testid="delete-announcement"
+        >
+          {announcement}
+        </div>
+
+        {/* ----------------------------------------------------------------
+            Polling Status Indicator + Clear All (T009)
             ---------------------------------------------------------------- */}
         <div className="d-flex align-items-center justify-content-between mb-3">
           <h2 className="h5 mb-0">Documents</h2>
@@ -318,6 +479,17 @@ export default function DashboardPage() {
                 data-testid="refresh-btn"
               >
                 🔄 Refresh
+              </button>
+            )}
+            {documents.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-danger"
+                onClick={handleClearAllRequest}
+                aria-label="Delete all documents"
+                data-testid="clear-all-btn"
+              >
+                🗑️ Clear All
               </button>
             )}
           </div>
@@ -345,6 +517,26 @@ export default function DashboardPage() {
         )}
 
         {/* ----------------------------------------------------------------
+            Delete Error Banner (T008)
+            ---------------------------------------------------------------- */}
+        {deleteError && (
+          <div
+            className="alert alert-danger d-flex align-items-center gap-2 mb-3"
+            role="alert"
+            data-testid="delete-error"
+          >
+            <span aria-hidden="true">⚠️</span>
+            <span>{deleteError}</span>
+            <button
+              type="button"
+              className="btn-close ms-auto"
+              aria-label="Dismiss error"
+              onClick={() => setDeleteError(null)}
+            />
+          </div>
+        )}
+
+        {/* ----------------------------------------------------------------
             Loading Skeleton
             ---------------------------------------------------------------- */}
         {isLoading && (
@@ -368,6 +560,7 @@ export default function DashboardPage() {
             documents={documents}
             onRetry={handleRetry}
             onPreview={handlePreview}
+            onDelete={handleDeleteRequest}
           />
         )}
 
@@ -431,6 +624,39 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+        {/* ----------------------------------------------------------------
+            Individual Delete Confirmation Dialog (T008)
+            ---------------------------------------------------------------- */}
+        <ConfirmDialog
+          isOpen={deleteTarget !== null}
+          title="Delete Document"
+          message={
+            deleteTarget
+              ? `Are you sure you want to permanently delete "${deleteTarget.name}"? This will remove the original file and all converted output. This action cannot be undone.`
+              : ''
+          }
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          variant="danger"
+          onConfirm={handleDeleteConfirm}
+          onCancel={handleDeleteCancel}
+          isLoading={isDeleting}
+        />
+
+        {/* ----------------------------------------------------------------
+            Clear All Confirmation Dialog (T009)
+            ---------------------------------------------------------------- */}
+        <ConfirmDialog
+          isOpen={showClearAll}
+          title="Clear All Documents"
+          message={`Are you sure you want to permanently delete all ${documents.length} document(s)? This will remove all uploaded files and converted output. This action cannot be undone.`}
+          confirmLabel="Delete All"
+          cancelLabel="Cancel"
+          variant="danger"
+          onConfirm={handleClearAllConfirm}
+          onCancel={handleClearAllCancel}
+          isLoading={isClearingAll}
+        />
       </div>
 
       {/* ----------------------------------------------------------------

@@ -18,9 +18,9 @@ from docx.shared import Pt, Inches
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
-from docx_extractor import extract_docx
-from html_builder import build_html
-from wcag_validator import validate_html
+from backend.docx_extractor import extract_docx
+from backend.html_builder import build_html
+from backend.wcag_validator import validate_html
 
 
 # ---------------------------------------------------------------------------

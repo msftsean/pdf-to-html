@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 
 import azure.functions as func
 from azure.core.exceptions import (
+    ResourceNotFoundError,
     ServiceRequestError,
     ServiceResponseError,
     HttpResponseError,
@@ -19,17 +20,18 @@ from azure.storage.blob import (
     ContentSettings,
     generate_blob_sas,
 )
+from azure.identity import DefaultAzureCredential
 
-from pdf_extractor import extract_pdf
-from ocr_service import ocr_pdf_pages
-from html_builder import build_html
-from models import (
+from backend.pdf_extractor import extract_pdf
+from backend.ocr_service import ocr_pdf_pages
+from backend.html_builder import build_html
+from backend.models import (
     ALLOWED_EXTENSIONS,
     EXTENSION_CONTENT_TYPES,
     MAX_FILE_SIZE_BYTES,
     DocumentStatus,
 )
-import status_service
+from backend import status_service
 
 app = func.FunctionApp()
 
@@ -47,8 +49,30 @@ _SAS_DOWNLOAD_EXPIRY_MINUTES = 60
 
 
 def _get_blob_service_client() -> BlobServiceClient:
-    conn_str = os.environ["AzureWebJobsStorage"]
-    return BlobServiceClient.from_connection_string(conn_str)
+    """Create a BlobServiceClient supporting both connection-string and
+    identity-based authentication.
+
+    - **Local / Azurite:** Uses ``AzureWebJobsStorage`` connection string.
+    - **Azure (managed identity):** Uses ``AzureWebJobsStorage__accountName``
+      with ``DefaultAzureCredential``.
+    """
+    conn_str = os.environ.get("AzureWebJobsStorage", "")
+
+    # Connection-string path (local dev / Azurite, or Azure with explicit
+    # connection string).
+    if conn_str and ("AccountKey=" in conn_str or "UseDevelopmentStorage=true" in conn_str):
+        return BlobServiceClient.from_connection_string(conn_str)
+
+    # Identity-based path (Azure managed identity).
+    account_name = os.environ.get("AzureWebJobsStorage__accountName", "")
+    if account_name:
+        account_url = f"https://{account_name}.blob.core.windows.net"
+        return BlobServiceClient(account_url, credential=DefaultAzureCredential())
+
+    raise RuntimeError(
+        "Storage not configured. Set AzureWebJobsStorage (connection string) "
+        "or AzureWebJobsStorage__accountName (identity-based auth)."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -174,6 +198,13 @@ def _is_password_protected_pptx(file_data: bytes) -> bool:
 @app.blob_trigger(arg_name="myblob", path="files/{name}",
                                connection="AzureWebJobsStorage")
 def file_upload(myblob: func.InputStream):
+    # Guard: skip the 0-byte placeholder blob created by generate_sas_token.
+    # The real content arrives later when the browser PUTs via the SAS URL,
+    # which triggers this function again with actual data.
+    if myblob.length is not None and myblob.length == 0:
+        logger.info("Skipping 0-byte placeholder blob: %s", myblob.name)
+        return
+
     blob_name = myblob.name or "unknown"
     logger.info("Processing file: %s (%d bytes)", blob_name, myblob.length or 0)
 
@@ -181,12 +212,50 @@ def file_upload(myblob: func.InputStream):
     base_filename = blob_name.rsplit("/", 1)[-1]
     document_id = base_filename.rsplit(".", 1)[0] if "." in base_filename else base_filename
 
+    # --- SAFETY NET: Reconstruct metadata if wiped by SAS upload ---
+    # When the browser PUTs via SAS URL, it overwrites the placeholder blob
+    # and ALL metadata is lost.  Detect this and re-set essential fields so
+    # that _find_blob_by_id() and list_documents() can still locate the blob.
+    blob_service = None
+    try:
+        blob_service = _get_blob_service_client()
+        container = blob_service.get_container_client(_INPUT_CONTAINER)
+        blob_client = container.get_blob_client(base_filename)
+        props = blob_client.get_blob_properties()
+        existing_meta = dict(props.metadata or {})
+
+        if "document_id" not in existing_meta or "status" not in existing_meta:
+            ext_for_meta = ("." + base_filename.rsplit(".", 1)[-1].lower()) if "." in base_filename else ""
+            logger.warning("Metadata missing for %s — reconstructing from blob name", blob_name)
+            reconstructed = {
+                "document_id": document_id,
+                "format": ALLOWED_EXTENSIONS.get(ext_for_meta, "pdf").value if ext_for_meta in ALLOWED_EXTENSIONS else "pdf",
+                "name": document_id,  # best we can do without original filename
+                "status": DocumentStatus.PROCESSING.value,
+                "size_bytes": str(myblob.length or 0),
+                "upload_timestamp": datetime.now(timezone.utc).isoformat(),
+                "pages_processed": "0",
+                "has_review_flags": "False",
+                "blob_path": f"{_INPUT_CONTAINER}/{base_filename}",
+                "output_path": "",
+                "review_pages": "[]",
+                "processing_time_ms": "",
+                "is_compliant": "",
+                "error_message": "",
+                "page_count": "",
+                "original_filename": base_filename,
+            }
+            blob_client.set_blob_metadata(reconstructed)
+    except Exception:
+        logger.exception("Could not verify/restore metadata for %s", blob_name)
+
     # --- Set status to "processing" ---
     import time
     start_time = time.monotonic()
 
     try:
-        blob_service = _get_blob_service_client()
+        if blob_service is None:
+            blob_service = _get_blob_service_client()
         status_service.set_status(blob_service, document_id, "processing")
     except Exception:
         logger.warning("Could not set processing status for %s", document_id)
@@ -226,10 +295,10 @@ def file_upload(myblob: func.InputStream):
 
         # --- Step 1: Extract content (route by file extension) ---
         if ext == ".docx":
-            from docx_extractor import extract_docx
+            from backend.docx_extractor import extract_docx
             pages, metadata = extract_docx(file_data)
         elif ext == ".pptx":
-            from pptx_extractor import extract_pptx
+            from backend.pptx_extractor import extract_pptx
             pages, metadata = extract_pptx(file_data)
         else:
             pages, metadata = extract_pdf(file_data)
@@ -256,7 +325,7 @@ def file_upload(myblob: func.InputStream):
         )
 
         # --- Step 3b: Run WCAG validation on generated HTML ---
-        from wcag_validator import validate_html as wcag_validate
+        from backend.wcag_validator import validate_html as wcag_validate
         wcag_violations = wcag_validate(html_content)
         is_compliant = not any(
             v.severity in ("critical", "serious") for v in wcag_violations
@@ -378,7 +447,8 @@ def file_upload(myblob: func.InputStream):
 # T017: SAS token generation for browser-direct uploads
 # ---------------------------------------------------------------------------
 
-@app.route(route="upload/sas-token", methods=["POST"])
+@app.route(route="upload/sas-token", methods=["POST"],
+           auth_level=func.AuthLevel.ANONYMOUS)
 def generate_sas_token(req: func.HttpRequest) -> func.HttpResponse:
     """Generate a short-lived SAS token for direct browser-to-blob upload.
 
@@ -477,27 +547,26 @@ def generate_sas_token(req: func.HttpRequest) -> func.HttpResponse:
             minutes=_SAS_UPLOAD_EXPIRY_MINUTES
         )
         account_name = blob_service.account_name
-        # Extract account key from connection string
-        account_key = _extract_account_key(
-            os.environ["AzureWebJobsStorage"]
+
+        sas_token = _generate_sas_token_str(
+            blob_service,
+            _INPUT_CONTAINER,
+            blob_name,
+            BlobSasPermissions(write=True, create=True),
+            expiry,
         )
 
-        sas_token = generate_blob_sas(
-            account_name=account_name,
-            container_name=_INPUT_CONTAINER,
-            blob_name=blob_name,
-            account_key=account_key,
-            permission=BlobSasPermissions(write=True, create=True),
-            expiry=expiry,
-        )
-
-        upload_url = f"https://{account_name}.blob.core.windows.net/{_INPUT_CONTAINER}/{blob_name}?{sas_token}"
+        if _is_local_storage():
+            upload_url = f"http://127.0.0.1:10000/{account_name}/{_INPUT_CONTAINER}/{blob_name}?{sas_token}"
+        else:
+            upload_url = f"https://{account_name}.blob.core.windows.net/{_INPUT_CONTAINER}/{blob_name}?{sas_token}"
 
         return func.HttpResponse(
             json.dumps({
                 "document_id": document_id,
                 "upload_url": upload_url,
                 "expires_at": expiry.isoformat(),
+                "metadata": initial_metadata,
             }),
             status_code=200,
             mimetype="application/json",
@@ -512,7 +581,8 @@ def generate_sas_token(req: func.HttpRequest) -> func.HttpResponse:
 # T018: Document status query
 # ---------------------------------------------------------------------------
 
-@app.route(route="documents/status", methods=["GET"])
+@app.route(route="documents/status", methods=["GET"],
+           auth_level=func.AuthLevel.ANONYMOUS)
 def get_document_status(req: func.HttpRequest) -> func.HttpResponse:
     """Return processing status for a single document or all documents.
 
@@ -563,7 +633,8 @@ def get_document_status(req: func.HttpRequest) -> func.HttpResponse:
 # T019: Download URL generation
 # ---------------------------------------------------------------------------
 
-@app.route(route="documents/{document_id}/download", methods=["GET"])
+@app.route(route="documents/{document_id}/download", methods=["GET"],
+           auth_level=func.AuthLevel.ANONYMOUS)
 def get_download_url(req: func.HttpRequest) -> func.HttpResponse:
     """Generate time-limited download URLs for a completed conversion.
 
@@ -609,7 +680,6 @@ def get_download_url(req: func.HttpRequest) -> func.HttpResponse:
 
         # --- Document is completed — build download URLs ------------------
         account_name = blob_service.account_name
-        account_key = _extract_account_key(os.environ["AzureWebJobsStorage"])
         expiry = datetime.now(timezone.utc) + timedelta(
             minutes=_SAS_DOWNLOAD_EXPIRY_MINUTES
         )
@@ -619,7 +689,7 @@ def get_download_url(req: func.HttpRequest) -> func.HttpResponse:
         zip_blob = f"{base_name}/{base_name}.zip"
 
         html_url = _generate_download_sas_url(
-            account_name, account_key, _OUTPUT_CONTAINER, html_blob, expiry
+            blob_service, _OUTPUT_CONTAINER, html_blob, expiry
         )
         preview_url = html_url  # Same URL — contract specifies this
 
@@ -630,7 +700,7 @@ def get_download_url(req: func.HttpRequest) -> func.HttpResponse:
         try:
             for blob in container_client.list_blobs(name_starts_with=images_prefix):
                 asset_url = _generate_download_sas_url(
-                    account_name, account_key, _OUTPUT_CONTAINER, blob.name, expiry
+                    blob_service, _OUTPUT_CONTAINER, blob.name, expiry
                 )
                 assets.append({
                     "filename": blob.name.split("/")[-1],
@@ -642,8 +712,11 @@ def get_download_url(req: func.HttpRequest) -> func.HttpResponse:
 
         # Zip URL (may not exist yet; URL is still valid per contract)
         zip_url = _generate_download_sas_url(
-            account_name, account_key, _OUTPUT_CONTAINER, zip_blob, expiry
+            blob_service, _OUTPUT_CONTAINER, zip_blob, expiry
         )
+
+        # Build image_urls list (just the SAS URLs, no metadata)
+        image_urls = [asset["url"] for asset in assets] if assets else []
 
         return func.HttpResponse(
             json.dumps({
@@ -656,6 +729,10 @@ def get_download_url(req: func.HttpRequest) -> func.HttpResponse:
                 "wcag_compliant": doc.is_compliant if doc.is_compliant is not None else True,
                 "review_pages": doc.review_pages,
                 "expires_at": expiry.isoformat(),
+                # Frontend-compatible aliases (downloadService.ts expects these)
+                "download_url": html_url,
+                "filename": doc.name,
+                "image_urls": image_urls if image_urls else None,
             }),
             status_code=200,
             mimetype="application/json",
@@ -664,6 +741,104 @@ def get_download_url(req: func.HttpRequest) -> func.HttpResponse:
     except Exception:
         logger.exception("Failed to generate download URLs for %s", document_id)
         return _json_error("Failed to generate download URLs", 500)
+
+
+# ---------------------------------------------------------------------------
+# T003: Delete a single document
+# ---------------------------------------------------------------------------
+
+@app.route(route="documents/{document_id}", methods=["DELETE"],
+           auth_level=func.AuthLevel.ANONYMOUS)
+def delete_document(req: func.HttpRequest) -> func.HttpResponse:
+    """Delete a single document and all its conversion output.
+
+    Path param: document_id
+    Returns 200 on success, 404 if not found, 409 if currently processing.
+    """
+    document_id = req.route_params.get("document_id", "")
+    if not document_id:
+        return _json_error("document_id is required", 400)
+
+    try:
+        blob_service = _get_blob_service_client()
+
+        # Guard: refuse to delete a document that is still processing
+        doc = status_service.get_status(blob_service, document_id)
+        if doc is None:
+            return _json_error("Document not found", 404)
+        if doc.status == DocumentStatus.PROCESSING.value:
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Cannot delete a document while it is being processed",
+                    "status": "processing",
+                }),
+                status_code=409,
+                mimetype="application/json",
+            )
+
+        # Perform deletion (with retry for transient blob failures)
+        result = _retry_blob_operation(
+            lambda: status_service.delete_document(
+                blob_service, document_id, _OUTPUT_CONTAINER
+            )
+        )
+
+        logger.info("Document %s deleted (%d blobs removed)",
+                     document_id, result["blobs_removed"])
+
+        return func.HttpResponse(
+            json.dumps({
+                "message": "Document deleted",
+                "document_id": document_id,
+                "blobs_removed": result["blobs_removed"],
+            }),
+            status_code=200,
+            mimetype="application/json",
+        )
+
+    except ResourceNotFoundError:
+        return _json_error("Document not found", 404)
+    except Exception:
+        logger.exception("Failed to delete document %s", document_id)
+        return _json_error("Failed to delete document", 500)
+
+
+# ---------------------------------------------------------------------------
+# T004: Delete all documents
+# ---------------------------------------------------------------------------
+
+@app.route(route="documents", methods=["DELETE"],
+           auth_level=func.AuthLevel.ANONYMOUS)
+def delete_all_documents(req: func.HttpRequest) -> func.HttpResponse:
+    """Delete all documents from input and output storage.
+
+    Returns 200 with deletion counts, 500 on error.
+    """
+    try:
+        blob_service = _get_blob_service_client()
+        result = status_service.delete_all_documents(
+            blob_service, _OUTPUT_CONTAINER
+        )
+
+        logger.info(
+            "All documents deleted: %d input, %d output",
+            result["deleted_input"],
+            result["deleted_output"],
+        )
+
+        return func.HttpResponse(
+            json.dumps({
+                "message": "All documents deleted",
+                "deleted_input": result["deleted_input"],
+                "deleted_output": result["deleted_output"],
+            }),
+            status_code=200,
+            mimetype="application/json",
+        )
+
+    except Exception:
+        logger.exception("Failed to delete all documents")
+        return _json_error("Failed to delete all documents", 500)
 
 
 # ---------------------------------------------------------------------------
@@ -686,8 +861,31 @@ def _file_extension(filename: str) -> str:
     return "." + filename.rsplit(".", 1)[-1].lower()
 
 
+def _is_azurite(connection_string: str) -> bool:
+    """Return True when the connection string targets the Azurite emulator."""
+    return (
+        "UseDevelopmentStorage=true" in connection_string
+        or "127.0.0.1:10000" in connection_string
+    )
+
+
+# Well-known Azurite storage credentials
+_AZURITE_ACCOUNT_NAME = "devstoreaccount1"
+_AZURITE_ACCOUNT_KEY = (
+    "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq"
+    "/K1SZFPTOtr/KBHBeksoGMGw=="
+)
+
+
 def _extract_account_key(connection_string: str) -> str:
-    """Parse AccountKey from an Azure Storage connection string."""
+    """Parse AccountKey from an Azure Storage connection string.
+
+    When the connection string is the Azurite shorthand
+    ``UseDevelopmentStorage=true``, returns the well-known Azurite
+    account key (there is no explicit AccountKey in that string).
+    """
+    if _is_azurite(connection_string):
+        return _AZURITE_ACCOUNT_KEY
     for part in connection_string.split(";"):
         part = part.strip()
         if part.lower().startswith("accountkey="):
@@ -711,4 +909,7 @@ def _generate_download_sas_url(
         permission=BlobSasPermissions(read=True),
         expiry=expiry,
     )
+    conn_str = os.environ.get("AzureWebJobsStorage", "")
+    if _is_azurite(conn_str):
+        return f"http://127.0.0.1:10000/{account_name}/{container}/{blob_name}?{sas_token}"
     return f"https://{account_name}.blob.core.windows.net/{container}/{blob_name}?{sas_token}"

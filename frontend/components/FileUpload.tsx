@@ -159,13 +159,17 @@ export default function FileUpload() {
 
         // Friendly error mapping
         let friendlyMessage = message;
-        if (message.includes('network error')) {
-          friendlyMessage =
-            'Network error — please check your connection and try again.';
-        } else if (
-          message.includes('Failed to request upload token') ||
-          message.includes('status 403')
+        if (
+          message.includes('network error') ||
+          message.includes('Failed to fetch') ||
+          message.includes('ERR_CONNECTION_REFUSED')
         ) {
+          friendlyMessage =
+            'Cannot reach the conversion service. Please try again shortly.';
+        } else if (message.includes('Failed to request upload token')) {
+          friendlyMessage =
+            'Could not authorize upload — the service may be unavailable. Please try again.';
+        } else if (message.includes('status 403')) {
           friendlyMessage =
             'Upload authorization expired. Please try uploading again.';
         } else if (message.includes('timed out')) {

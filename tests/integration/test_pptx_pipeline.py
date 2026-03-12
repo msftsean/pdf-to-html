@@ -16,9 +16,9 @@ import pytest
 from pptx import Presentation
 from pptx.util import Inches, Pt
 
-from pptx_extractor import extract_pptx, SPEAKER_NOTES_FONT
-from html_builder import build_html
-from wcag_validator import validate_html
+from backend.pptx_extractor import extract_pptx, SPEAKER_NOTES_FONT
+from backend.html_builder import build_html
+from backend.wcag_validator import validate_html
 
 
 # ---------------------------------------------------------------------------

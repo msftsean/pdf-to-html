@@ -20,9 +20,9 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
-from pdf_extractor import extract_pdf
-from html_builder import build_html
-from wcag_validator import validate_html
+from backend.pdf_extractor import extract_pdf
+from backend.html_builder import build_html
+from backend.wcag_validator import validate_html
 from eval_metrics import (
     count_violations_by_severity,
     heading_hierarchy_score,

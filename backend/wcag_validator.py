@@ -28,7 +28,7 @@ import re
 from html.parser import HTMLParser
 from typing import Any
 
-from models import WcagViolation, Severity
+from .models import WcagViolation, Severity
 
 logger = logging.getLogger(__name__)
 
