@@ -69,13 +69,13 @@ function validateFile(file: File): void {
 export async function requestSasToken(file: File): Promise<SasTokenResponse> {
   validateFile(file);
 
-  const response = await fetch(`${API_BASE}/upload`, {
+  const response = await fetch(`${API_BASE}/upload/sas-token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       filename: file.name,
       content_type: file.type,
-      file_size: file.size,
+      size_bytes: file.size,
     }),
   });
 

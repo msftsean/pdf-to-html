@@ -50,7 +50,7 @@ export interface StatusResponse {
  * Fetch status of all documents for the current session.
  */
 export async function getDocumentStatuses(): Promise<StatusResponse> {
-  const response = await fetch(`${API_BASE}/status`, {
+  const response = await fetch(`${API_BASE}/documents/status`, {
     method: 'GET',
     headers: { 'Accept': 'application/json' },
   });
@@ -76,7 +76,7 @@ export async function getDocumentStatus(
   }
 
   const response = await fetch(
-    `${API_BASE}/status/${encodeURIComponent(documentId)}`,
+    `${API_BASE}/documents/status?document_id=${encodeURIComponent(documentId)}`,
     {
       method: 'GET',
       headers: { 'Accept': 'application/json' },

@@ -56,3 +56,30 @@
 
 6. **Build verified** — `pytest tests/` passes all 40 new tests plus existing suite. No breaking changes to backend API.
 
+### Local Dev Environment Setup (Session 4)
+
+1. **Azurite requires `--skipApiVersionCheck`:** The azure-storage-blob SDK (v12.x) sends API version 2026-02-06, which Azurite's npm release doesn't support yet. Must start Azurite with `--skipApiVersionCheck` flag to avoid `InvalidHeaderValue` errors.
+2. **Azurite ports:** Blob on 10000, Queue on 10001, Table on 10002. All on 127.0.0.1 by default.
+3. **Blob containers needed:** `files` (input) and `converted` (output) must be created manually in Azurite before the function app will work. Use the Python SDK with the well-known Azurite connection string.
+4. **local.settings.json:** Not committed to git (`.gitignore`). Must be created manually with `AzureWebJobsStorage=UseDevelopmentStorage=true`, `FUNCTIONS_WORKER_RUNTIME=python`, and `OUTPUT_CONTAINER=converted`. CORS set to `*` for local dev.
+5. **Function app endpoints (local):**
+   - `POST http://localhost:7071/api/upload/sas-token` — Generate SAS upload URL
+   - `GET http://localhost:7071/api/documents/status` — List all document statuses
+   - `GET http://localhost:7071/api/documents/{document_id}/download` — Download URL
+   - `blobTrigger` on `files` container — Automatic conversion on upload
+6. **Azure Functions Core Tools v4.8.0** works with Python 3.12. `func start` from project root.
+7. **All 171 tests pass** with `pytest tests/ -x -q` in ~3 seconds.
+
+### API Route Mismatch Fix (Session 5)
+
+1. **Fixed 4 frontend→backend route mismatches** that caused ERR_CONNECTION_REFUSED (actually 404s):
+   - `uploadService.ts`: `POST /api/upload` → `POST /api/upload/sas-token`
+   - `uploadService.ts`: Request body field `file_size` → `size_bytes` (matching backend's `body.get("size_bytes")`)
+   - `statusService.ts`: `GET /api/status` → `GET /api/documents/status`
+   - `statusService.ts`: `GET /api/status/{id}` → `GET /api/documents/status?document_id={id}` (backend uses query param, not path param)
+2. `downloadService.ts` was already correct (`GET /api/documents/{id}/download`).
+3. **Root cause:** Frontend was built against the route spec in Decision 1 (`/api/upload`, `/api/status`), but backend implemented RESTful routes under `/api/documents/` and `/api/upload/sas-token`. The two teams never synced route names.
+4. **Verified:** curl confirmed correct routes return 200, old routes return 404. All 171 backend tests pass.
+
+- **Frontend-backend route contracts must be verified early:** The original decisions doc (Decision 1) listed simplified route names (`/api/upload`, `/api/status`) but the backend implemented more RESTful names. Always verify actual route strings match between frontend and backend before integration testing.
+
