@@ -143,6 +143,37 @@ def get_summary(
     return summary
 
 
+def get_batch_summary(
+    blob_service: BlobServiceClient,
+    documents: list[Document] | None = None,
+) -> dict[str, int]:
+    """Return aggregate batch-processing counts by status.
+
+    When *documents* is provided the counts are computed from the list
+    directly — this avoids a redundant blob scan when the caller already
+    has the full document list (e.g. the status API endpoint that also
+    returns the list).
+
+    Returns a dict matching the batch summary shape::
+
+        {"total": 15, "pending": 3, "processing": 2, "completed": 9, "failed": 1}
+    """
+    if documents is None:
+        documents = list_documents(blob_service)
+
+    summary: dict[str, int] = {
+        "total": len(documents),
+        "pending": 0,
+        "processing": 0,
+        "completed": 0,
+        "failed": 0,
+    }
+    for doc in documents:
+        if doc.status in summary:
+            summary[doc.status] += 1
+    return summary
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------

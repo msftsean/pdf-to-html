@@ -42,6 +42,19 @@ export default function Home() {
                 Upload Documents
               </h2>
               <FileUpload />
+
+              <div className="text-center mt-4">
+                <a
+                  href="/dashboard"
+                  className="btn btn-outline-primary"
+                  style={{
+                    fontFamily: 'var(--nc-font-heading)',
+                    fontWeight: 600,
+                  }}
+                >
+                  📊 View Conversion Dashboard
+                </a>
+              </div>
             </div>
           </div>
         </div>

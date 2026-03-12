@@ -44,14 +44,19 @@ export default function NCHeader() {
             </div>
           </div>
 
-          {/* Navigation area — placeholder for future nav items */}
+          {/* Navigation area */}
           <nav aria-label="Service navigation" className="nc-header__nav">
             <a
               href="/"
               className="nc-header__nav-link"
-              aria-current="page"
             >
-              Home
+              Upload
+            </a>
+            <a
+              href="/dashboard"
+              className="nc-header__nav-link"
+            >
+              Dashboard
             </a>
           </nav>
         </div>
@@ -95,6 +100,10 @@ export default function NCHeader() {
           font-weight: bold;
           color: var(--nc-navy, #003366);
           line-height: 1.3;
+        }
+        .nc-header__nav {
+          display: flex;
+          gap: 0.25rem;
         }
         .nc-header__nav-link {
           color: var(--nc-navy, #003366);

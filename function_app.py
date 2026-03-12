@@ -48,7 +48,7 @@ def _get_blob_service_client() -> BlobServiceClient:
                                connection="AzureWebJobsStorage")
 def file_upload(myblob: func.InputStream):
     blob_name = myblob.name or "unknown"
-    logger.info("Processing PDF: %s (%d bytes)", blob_name, myblob.length or 0)
+    logger.info("Processing file: %s (%d bytes)", blob_name, myblob.length or 0)
 
     # Derive document_id from blob filename (format: <uuid>.<ext>)
     base_filename = blob_name.rsplit("/", 1)[-1]
@@ -66,21 +66,26 @@ def file_upload(myblob: func.InputStream):
         blob_service = None
 
     try:
-        # Read the full PDF into memory
-        pdf_data = myblob.read()
+        # Read file into memory
+        file_data = myblob.read()
 
-        # --- Step 1: Extract content with PyMuPDF ---
-        pages, metadata = extract_pdf(pdf_data)
+        # --- Step 1: Extract content (route by file extension) ---
+        ext = ("." + base_filename.rsplit(".", 1)[-1].lower()) if "." in base_filename else ""
+        if ext == ".docx":
+            from docx_extractor import extract_docx
+            pages, metadata = extract_docx(file_data)
+        else:
+            pages, metadata = extract_pdf(file_data)
         logger.info("Extracted %d pages. Metadata: %s", len(pages), metadata.get("title", "N/A"))
 
         # --- Step 2: Identify scanned pages that need OCR ---
         scanned_pages = [p.page_number for p in pages if p.is_scanned]
         ocr_results = {}
 
-        if scanned_pages:
+        if scanned_pages and ext != ".docx":
             logger.info("Sending %d scanned page(s) to Document Intelligence for OCR", len(scanned_pages))
             try:
-                ocr_results = ocr_pdf_pages(pdf_data, scanned_pages)
+                ocr_results = ocr_pdf_pages(pdf_data=file_data, page_numbers=scanned_pages)
                 logger.info("OCR complete for %d page(s)", len(ocr_results))
             except Exception:
                 logger.exception("Document Intelligence OCR failed — scanned pages will have no text")
@@ -128,8 +133,10 @@ def file_upload(myblob: func.InputStream):
         # Derive output path from input blob name
         # e.g. "files/report.pdf" -> "report"
         base_name = blob_name.rsplit("/", 1)[-1]
-        if base_name.lower().endswith(".pdf"):
-            base_name = base_name[:-4]
+        for known_ext in (".pdf", ".docx", ".pptx"):
+            if base_name.lower().endswith(known_ext):
+                base_name = base_name[:-len(known_ext)]
+                break
 
         # Upload HTML
         html_blob_name = f"{base_name}/{base_name}.html"
@@ -346,15 +353,18 @@ def get_document_status(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json",
             )
 
-        # List all documents with summary
+        # List all documents with batch summary (single blob scan)
         documents = status_service.list_documents(blob_service)
-        summary = status_service.get_summary(blob_service)
+        batch_summary = status_service.get_batch_summary(
+            blob_service, documents=documents
+        )
 
         return func.HttpResponse(
             json.dumps(
                 {
                     "documents": [d.to_dict() for d in documents],
-                    "summary": summary,
+                    "summary": batch_summary,
+                    "batch_summary": batch_summary,
                 },
                 default=str,
             ),
