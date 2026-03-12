@@ -35,7 +35,7 @@ jobs:
           npm install -g staticrypt
           mkdir -p _site/runbook
           staticrypt docs/runbook/index.html -p "${{ secrets.RUNBOOK_PASSWORD }}" \
-            -o _site/runbook/index.html \
+            -d _site/runbook \
             --short \
             --template-title "NCDIT Operations Runbook" \
             --template-instructions "Enter the runbook password to access operations documentation." \
