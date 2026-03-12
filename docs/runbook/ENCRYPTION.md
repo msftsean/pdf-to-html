@@ -1,15 +1,15 @@
-# Runbook Encryption Guide
+# 🔐 Runbook Encryption Guide
 
-The `index.html` runbook is designed to be encrypted with **StaticCrypt** before deployment.
+> 🛡️ The `index.html` runbook is designed to be encrypted with **StaticCrypt** before deployment.
 
-## Prerequisites
+## 📋 Prerequisites
 
 Install StaticCrypt globally:
 ```bash
 npm install -g staticrypt
 ```
 
-## Encrypt the Runbook
+## 🔒 Encrypt the Runbook
 
 ```bash
 cd /workspaces/pdf-to-html/docs/runbook
@@ -22,7 +22,7 @@ staticrypt index.html -p "YOUR_STRONG_PASSWORD_HERE"
 # - index_encrypted.html (backup, if --no-remember flag used)
 ```
 
-## Recommended StaticCrypt Options
+## ⚙️ Recommended StaticCrypt Options
 
 For production, use these flags:
 
@@ -36,14 +36,14 @@ staticrypt index.html \
   --template-color-secondary "#38bdf8"
 ```
 
-**Options explained:**
+**⚙️ Options explained:**
 - `--title`: Sets the page title shown before unlock
 - `--instructions`: Custom message on the password prompt
 - `--remember 30`: Remembers password for 30 days (stores encrypted token in localStorage)
 - `--template-color-primary`: NCDIT brand navy (#003366)
 - `--template-color-secondary`: Sky blue accent (#38bdf8)
 
-## Decrypt for Updates
+## 🔓 Decrypt for Updates
 
 To update the runbook:
 
@@ -51,9 +51,9 @@ To update the runbook:
 2. Make edits to the unencrypted version
 3. Re-encrypt after changes
 
-**DO NOT** commit the encrypted version to Git. Only commit the source (unencrypted) HTML.
+> ⚠️ **DO NOT** commit the encrypted version to Git. Only commit the source (unencrypted) HTML.
 
-## Deployment
+## 🚀 Deployment
 
 Deploy the **encrypted** `index.html` to:
 - Azure Static Web Apps
@@ -62,21 +62,25 @@ Deploy the **encrypted** `index.html` to:
 
 The encrypted file is self-contained — no external dependencies except the Google Fonts CDN.
 
-## Password Management
+## 🔑 Password Management
 
-- **Password Complexity:** Minimum 16 characters, mixed case, numbers, symbols
-- **Rotation:** Change password quarterly
-- **Distribution:** Share via secure channel (1Password, LastPass, Azure Key Vault)
-- **Access Control:** Only provide to on-call engineers and DevOps team
+| Policy | Requirement |
+|--------|-------------|
+| **Complexity** | Minimum 16 characters, mixed case, numbers, symbols |
+| **Rotation** | Change password quarterly |
+| **Distribution** | Share via secure channel (1Password, LastPass, Azure Key Vault) |
+| **Access Control** | Only provide to on-call engineers and DevOps team |
 
-## Security Notes
+## 🛡️ Security Notes
 
-- StaticCrypt uses **AES-256-GCM** encryption
-- Password is never sent to the server — all decryption happens client-side
-- The encrypted HTML includes the crypto libraries inline (no CDN dependencies)
-- Brute-force protection: Password hashing uses 100,000+ iterations
+| Feature | Detail |
+|---------|--------|
+| **Encryption** | AES-256-GCM |
+| **Decryption** | Client-side only — password never sent to server |
+| **Dependencies** | Crypto libraries inline (no CDN required) |
+| **Brute-force protection** | 100,000+ PBKDF2 iterations |
 
-## Example Workflow
+## 📋 Example Workflow
 
 ```bash
 # 1. Edit the source
@@ -96,4 +100,8 @@ az storage blob upload \
 
 ---
 
-**Built for NCDIT by Flash (Frontend Developer)**
+**Built for NCDIT by ⚡ Flash (Frontend Developer)**
+
+---
+
+<sub>📅 Last Updated: 2025-07-24 · Maintained by 🤖 Cyborg (DevOps & Infrastructure)</sub>

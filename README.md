@@ -258,7 +258,35 @@ This project uses [GitHub Spec Kit](https://github.com/github/spec-kit) for spec
 | 🔌 API Contracts | `specs/001-sean/contracts/` | Upload, Status, Download APIs |
 | ✅ Tasks | `specs/001-sean/tasks.md` | 79 actionable implementation tasks |
 
-## 📦 Version Matrix
+## 📌 Dependency Versions
+
+> Pulled from `requirements.txt`, `frontend/package.json`, and `host.json`
+
+| Component | Package | Version | Notes |
+|-----------|---------|---------|-------|
+| **⚡ Runtime** | Azure Functions SDK | `1.24.0` | Python worker |
+| **⚡ Runtime** | Extension Bundle | `[4.*, 5.0.0)` | host.json |
+| **🐍 Python** | Python | `3.12+` | Required minimum |
+| **📄 PDF** | PyMuPDF | `1.27.2` | Text, image, table extraction |
+| **🔍 OCR** | Azure AI Document Intelligence | `1.0.2` | Scanned PDF recognition |
+| **🔐 Auth** | Azure Identity | `1.25.2` | Managed identity / Entra ID |
+| **☁️ Storage** | Azure Storage Blob | `12.28.0b1` | Input/output persistence |
+| **📝 DOCX** | python-docx | `1.2.0` | Word document extraction |
+| **📊 PPTX** | python-pptx | `1.0.2` | PowerPoint extraction |
+| **🎨 Templates** | Jinja2 | `3.1.6` | HTML templating |
+| **🧪 Testing** | pytest | `9.0.2` | Test framework |
+| **🧪 Testing** | pytest-cov | `7.0.0` | Coverage reporting |
+| **🧪 Testing** | pytest-asyncio | `1.3.0` | Async test support |
+| **🌐 Frontend** | Next.js | `14.2.35` | React framework with SSR |
+| **⚛️ UI** | React | `^18` | Component library |
+| **🎨 Styling** | Bootstrap | `^5.3.8` | NCDIT Digital Commons compatible |
+| **♿ A11y** | axe-core | `^4.11.1` | WCAG automated testing |
+| **📦 Archive** | JSZip | `^3.10.1` | Download package creation |
+| **🔧 TypeScript** | TypeScript | `^5` | Type-safe frontend |
+| **🧪 Frontend Test** | Jest | `^30.3.0` | Frontend test runner |
+| **🔍 Lint** | ESLint | `8.57.1` | Code quality |
+
+## 📦 Release History
 
 | Version | Date | Component | Changes |
 |---------|------|-----------|---------|
@@ -346,3 +374,7 @@ This project exists because **accessible government services are a civil right**
 🏛️ [NC.gov](https://www.nc.gov) · 💻 [NCDIT](https://it.nc.gov) · ♿ [Digital Accessibility](https://it.nc.gov/documents/digital-accessibility-usability-standard/open)
 
 </div>
+
+---
+
+<sub>📅 Last Updated: 2025-07-24 · Maintained by 🦇 Batman (Tech Lead)</sub>

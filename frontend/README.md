@@ -1,36 +1,127 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<div align="center">
 
-## Getting Started
+# 🌐 NCDIT Document Converter — Frontend
 
-First, run the development server:
+**WCAG 2.1 AA Accessible Web Interface for Document-to-HTML Conversion**
+
+[![Next.js 14](https://img.shields.io/badge/Next.js-14.2.35-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![React 18](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
+[![Bootstrap 5](https://img.shields.io/badge/Bootstrap-5.3.8-7952B3?style=flat-square&logo=bootstrap&logoColor=white)](https://getbootstrap.com/)
+[![axe-core](https://img.shields.io/badge/axe--core-4.11.1-663399?style=flat-square)](https://www.deque.com/axe/)
+[![TypeScript 5](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+
+</div>
+
+---
+
+## ✨ Features
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| 📤 **Drag-and-Drop Upload** | ✅ Implemented | Upload PDF, DOCX, PPTX files via accessible drop zone |
+| 📊 **Live Progress Dashboard** | ✅ Implemented | Real-time conversion status with polling |
+| 👁️ **HTML Preview** | ✅ Implemented | In-browser preview of converted output |
+| 📥 **Download Packages** | ✅ Implemented | Download HTML + images as zip package |
+| 🏛️ **NCDIT Digital Commons** | ✅ Implemented | NC.gov branding, GovBanner, NCHeader components |
+| ♿ **WCAG 2.1 AA** | ✅ Implemented | Keyboard nav, screen reader support, color contrast |
+| 📦 **Batch Upload** | ✅ Implemented | Process multiple documents concurrently |
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- **Node.js** 20+ (`node --version`)
+- **npm** 9+ (`npm --version`)
+- Backend running on `http://localhost:7071` (see [root QUICKSTART](../QUICKSTART.md))
+
+### Install & Run
 
 ```bash
+# Install dependencies
+npm install
+
+# Start development server (http://localhost:3000)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 🔧 Environment Configuration
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create `frontend/.env.local`:
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:7071/api
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🧪 Testing
 
-## Learn More
+```bash
+# Run all tests (Jest + React Testing Library)
+npm test
 
-To learn more about Next.js, take a look at the following resources:
+# Watch mode
+npm run test:watch
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Lint (ESLint + Next.js rules)
+npm run lint
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Build (catches TypeScript errors)
+npm run build
+```
 
-## Deploy on Vercel
+**Test stack:** Jest ^30.3.0 · React Testing Library ^16.3.2 · jest-axe ^10.0.0 (accessibility assertions)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📁 Project Structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+frontend/
+├── app/                    # Next.js App Router
+│   ├── layout.tsx          # Root layout (GovBanner, NCHeader, footer)
+│   ├── page.tsx            # Home page (upload interface)
+│   └── globals.css         # Global styles
+├── components/             # React components
+│   ├── GovBanner.tsx       # US government website banner
+│   ├── NCHeader.tsx        # NCDIT header with logo
+│   ├── UploadZone.tsx      # Drag-and-drop file upload
+│   ├── ProgressDashboard.tsx # Live conversion progress
+│   ├── DocumentPreview.tsx # HTML preview panel
+│   └── DownloadButton.tsx  # Package download
+├── services/               # API client services
+│   ├── uploadService.ts    # SAS token upload flow
+│   ├── statusService.ts    # Polling for conversion status
+│   └── downloadService.ts  # Download URL generation
+├── styles/                 # NCDIT Digital Commons tokens
+├── __tests__/              # Test files
+├── package.json            # Dependencies & scripts
+├── tsconfig.json           # TypeScript config
+└── next.config.mjs         # Next.js configuration
+```
+
+## 📌 Version Matrix
+
+> Pulled from `package.json` — exact versions used in this project
+
+| Category | Package | Version |
+|----------|---------|---------|
+| 🌐 **Framework** | Next.js | `14.2.35` |
+| ⚛️ **UI** | React | `^18` |
+| ⚛️ **UI** | React DOM | `^18` |
+| 🎨 **Styling** | Bootstrap | `^5.3.8` |
+| ♿ **Accessibility** | axe-core | `^4.11.1` |
+| ♿ **Accessibility** | @axe-core/react | `^4.11.1` |
+| 📦 **Archive** | JSZip | `^3.10.1` |
+| 🔧 **Language** | TypeScript | `^5` |
+| 🧪 **Testing** | Jest | `^30.3.0` |
+| 🧪 **Testing** | jest-axe | `^10.0.0` |
+| 🧪 **Testing** | @testing-library/react | `^16.3.2` |
+| 🔍 **Lint** | ESLint | `8.57.1` |
+| 🔍 **Lint** | eslint-config-next | `^14.2.35` |
+
+## 📚 Learn More
+
+- [Next.js Documentation](https://nextjs.org/docs) — Framework features and API
+- [React Documentation](https://react.dev/) — Component patterns
+- [NCDIT Digital Commons](https://it.nc.gov) — NC.gov design system
+- [axe-core Rules](https://dequeuniversity.com/rules/axe/) — WCAG testing rules
+
+---
+
+<sub>📅 Last Updated: 2025-07-24 · Maintained by ⚡ Flash (Frontend Developer)</sub>

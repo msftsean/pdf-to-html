@@ -17,10 +17,17 @@
 - **Storage:** Use existing blob metadata pattern to store classification results (document_type, suitability_score, warning_message)
 - **ADR location:** `.squad/decisions/inbox/batman-classification-engine.md`
 
-### Documentation Standards
-- README must reflect reality: updated milestone table, user story completion status, accurate test counts (137 backend + 307 frontend = 444+), and comprehensive architecture diagram showing PDF/DOCX/PPTX pipelines
-- QUICKSTART validation confirmed all paths, prerequisites, and commands are accurate — no corrections needed
-- NCDIT branding (logo, badges, version matrix) preserved throughout
+### Documentation Enhancement Standards (2025-07-24)
+- Applied emojis to all 6 user-facing docs: README.md, QUICKSTART.md, frontend/README.md, docs/runbook/README.md, DELIVERY_NOTES.md, ENCRYPTION.md
+- Added shield.io status badges to QUICKSTART.md and frontend/README.md
+- Added feature completion status indicators (✅ Implemented, 🔄 In Progress, 📋 Planned) to frontend/README.md
+- Added comprehensive dependency version matrices to README.md (22 packages), QUICKSTART.md (12 entries), and frontend/README.md (13 packages) — all versions pulled from actual requirements.txt, package.json, host.json, and pip show output
+- Converted password management and security notes in ENCRYPTION.md to clean tables
+- Added StaticCrypt config table to runbook/README.md
+- Added "Last Updated" footer to all 6 files
+- Renamed misleading "Version Matrix" to "Release History" in README.md, added separate "Dependency Versions" section
+- **Stale content audit:** Found and fixed 6 issues including ghost `/api/health` endpoint, incorrect wcag_validator description, missing extractors in project structure, boilerplate frontend README, incomplete API docs. Full findings in `.squad/decisions/inbox/batman-docs-audit.md`
+- Files updated: README.md, QUICKSTART.md, frontend/README.md, docs/runbook/README.md, docs/runbook/DELIVERY_NOTES.md, docs/runbook/ENCRYPTION.md
 
 ### Performance Architecture
 - PyMuPDF is the optimal choice for PDF extraction — no faster Python library exists

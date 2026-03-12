@@ -1,5 +1,9 @@
 # 🚀 Quick Start Guide
 
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Node.js 20+](https://img.shields.io/badge/Node.js-20+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Azure Functions v4](https://img.shields.io/badge/Azure_Functions-v4-0078D4?style=flat-square&logo=azure-functions&logoColor=white)](https://azure.microsoft.com/en-us/products/functions)
+
 Welcome to **NCDIT Document Converter**, a WCAG 2.1 AA compliant PDF/DOCX/PPTX-to-HTML converter built for North Carolina state government.
 
 This guide gets you from zero to converting your first document in **~10 minutes**.
@@ -8,12 +12,13 @@ This guide gets you from zero to converting your first document in **~10 minutes
 
 ## 📋 Prerequisites
 
-| Tool | Version | Why |
-|------|---------|-----|
-| **Python** | 3.12+ | Backend runtime |
-| **Node.js** | 20+ | Frontend development |
-| **npm** | 9+ | Frontend package manager |
-| **Azure Functions Core Tools** | 4.x | Local function runtime |
+| Tool | Version | Installed | Why |
+|------|---------|-----------|-----|
+| **🐍 Python** | 3.12+ | `python3 --version` | Backend runtime |
+| **🟢 Node.js** | 20+ | `node --version` | Frontend development |
+| **📦 npm** | 9+ | `npm --version` | Frontend package manager |
+| **⚡ Azure Functions Core Tools** | 4.x | `func --version` | Local function runtime |
+| **💾 Azurite** | latest | `npx azurite --version` | Local blob storage emulator |
 
 ### Install Prerequisites
 
@@ -145,8 +150,8 @@ This starts the Azure Functions runtime on `http://localhost:7071`. The function
 
 **Verify it's running:**
 ```bash
-curl http://localhost:7071/api/health
-# Should return: {"status": "ok"}
+curl http://localhost:7071/api/documents/status
+# Should return a JSON response (confirms Azure Functions is listening)
 ```
 
 ### Terminal 3: Frontend (Next.js Dev Server)
@@ -261,33 +266,38 @@ pytest tests/integration/ -v
 ```
 pdf-to-html/
 ├── function_app.py           # Azure Functions orchestrator
-├── pdf_extractor.py          # PDF → text/images/tables
-├── ocr_service.py            # Azure Document Intelligence client
+├── pdf_extractor.py          # PDF → text/images/tables (PyMuPDF)
+├── docx_extractor.py         # Word document → structured content (python-docx)
+├── pptx_extractor.py         # PowerPoint → slide-by-slide content (python-pptx)
+├── ocr_service.py            # Azure Document Intelligence OCR client
 ├── html_builder.py           # WCAG-compliant HTML generation
-├── wcag_validator.py         # axe-core accessibility validation
-├── status_service.py         # Processing status tracking
+├── wcag_validator.py         # Server-side WCAG 2.1 AA validation (7 Python rules)
+├── status_service.py         # Processing status tracking via blob metadata
 ├── models.py                 # Pydantic data models
 │
 ├── frontend/                 # Next.js 14 React app
 │   ├── app/                  # App Router (Next.js 13+)
-│   ├── components/           # React components
-│   ├── services/             # API client service
+│   ├── components/           # React components (GovBanner, NCHeader, UploadZone, etc.)
+│   ├── services/             # API client services (upload, status, download)
 │   └── styles/               # NCDIT Bootstrap styles
 │
 ├── tests/
-│   ├── unit/                 # Backend unit tests
+│   ├── unit/                 # Backend unit tests (137 tests)
 │   ├── integration/          # End-to-end tests
+│   ├── eval/                 # WCAG evaluation suite
 │   └── conftest.py           # Pytest fixtures
 │
 ├── scripts/
-│   └── quickstart-check.sh   # This validation script
+│   ├── quickstart-check.sh   # Setup validation script
+│   ├── run_evals.py          # WCAG evaluation runner
+│   └── render_report.py      # Evaluation report generator
 │
 ├── specs/
-│   ├── 001-sean/
-│   │   ├── spec.md           # Feature specification
-│   │   ├── plan.md           # Architecture & design
-│   │   └── quickstart.md     # Original quickstart
-│   └── ...
+│   └── 001-sean/
+│       ├── spec.md           # Feature specification
+│       ├── plan.md           # Architecture & design
+│       ├── tasks.md          # 79 implementation tasks
+│       └── contracts/        # API contracts (upload, status, download)
 │
 ├── host.json                 # Azure Functions config
 ├── requirements.txt          # Python dependencies
@@ -297,26 +307,31 @@ pdf-to-html/
 
 ---
 
-## 🔍 API Contracts
+## 🔗 API Contracts
 
-### Health Check
+### 📤 Upload SAS Token
 
 ```bash
-GET http://localhost:7071/api/health
+POST http://localhost:7071/api/upload/sas-token
+Content-Type: application/json
+
+{
+  "filename": "my-document.pdf"
+}
 ```
 
 Response:
 ```json
 {
-  "status": "ok",
-  "timestamp": "2024-03-11T22:30:00Z"
+  "sas_url": "http://127.0.0.1:10000/devstoreaccount1/files/my-document.pdf?sv=...",
+  "document_id": "my-document.pdf"
 }
 ```
 
-### Document Conversion Status
+### 📊 Document Conversion Status
 
 ```bash
-GET http://localhost:7071/api/status/{document_id}
+GET http://localhost:7071/api/documents/status?document_id=my-document.pdf
 ```
 
 Response:
@@ -325,14 +340,25 @@ Response:
   "document_id": "my-document.pdf",
   "status": "completed",
   "progress": 100,
-  "output_url": "blob://converted/my-document/output.html",
-  "errors": null
+  "message": "Conversion complete"
 }
 ```
 
-### Upload (Web UI Handles This)
+### 📥 Download Converted Document
 
-The frontend uploads files directly to Blob Storage via SAS tokens (bypassing the 100MB Azure Functions limit).
+```bash
+GET http://localhost:7071/api/documents/my-document.pdf/download
+```
+
+Response:
+```json
+{
+  "download_url": "http://127.0.0.1:10000/devstoreaccount1/converted/my-document/output.html?sv=...",
+  "document_id": "my-document.pdf"
+}
+```
+
+> ⚠️ **Note:** There is no dedicated `/api/health` endpoint. To verify the backend is running, use the status endpoint or check the Azure Functions runtime output in your terminal.
 
 ---
 
@@ -482,8 +508,33 @@ python3 -m pytest tests/unit/test_models.py -v  # Run a single test
 - **Review the spec:** [specs/001-sean/spec.md](specs/001-sean/spec.md) for full feature requirements
 - **Read the architecture:** [specs/001-sean/plan.md](specs/001-sean/plan.md) for design decisions
 - **Run the tests:** `pytest tests/ -v` to see the full test suite
-- **Deploy to Azure:** Follow the deployment guide in the project documentation
+- **Deploy to Azure:** Follow the [Operations Runbook](docs/runbook/README.md) for deployment guidance
+
+---
+
+## 📌 Version Matrix
+
+> Versions required for local development — verified against current `requirements.txt` and `package.json`
+
+| Category | Dependency | Version | Required |
+|----------|-----------|---------|----------|
+| 🐍 **Backend** | Python | 3.12+ | ✅ Yes |
+| ⚡ **Runtime** | Azure Functions Core Tools | 4.x | ✅ Yes |
+| ⚡ **Runtime** | Azure Functions SDK | 1.24.0 | Auto-installed |
+| 📄 **PDF** | PyMuPDF | 1.27.2 | Auto-installed |
+| 🔍 **OCR** | Azure AI Document Intelligence | 1.0.2 | Auto-installed |
+| 📝 **DOCX** | python-docx | 1.2.0 | Auto-installed |
+| 📊 **PPTX** | python-pptx | 1.0.2 | Auto-installed |
+| 🌐 **Frontend** | Node.js | 20+ | ✅ Yes |
+| 🌐 **Frontend** | Next.js | 14.2.35 | Auto-installed |
+| ⚛️ **Frontend** | React | ^18 | Auto-installed |
+| 🎨 **Frontend** | Bootstrap | ^5.3.8 | Auto-installed |
+| 💾 **Storage** | Azurite | latest | ✅ Yes |
 
 ---
 
 **Happy converting! 🎉**
+
+---
+
+<sub>📅 Last Updated: 2025-07-24 · Maintained by 🦇 Batman (Tech Lead)</sub>
