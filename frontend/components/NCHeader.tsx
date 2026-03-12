@@ -1,134 +1,171 @@
 'use client';
 
+import ThemeToggle from '@/components/ThemeToggle';
+
 /**
- * NCHeader — NC.gov-style Page Header
+ * NCHeader — Sticky frosted-glass header with NC.gov branding.
  *
- * Displays the NC.gov branding, department label (NCDIT),
- * and service name (Document Converter).
+ * Redesigned to match the operations runbook aesthetic:
+ * - Sticky top with backdrop-filter blur
+ * - Gradient underline accent (sky → emerald → amber)
+ * - Outfit font for all text
+ * - ThemeToggle integrated on the right
  *
  * Accessibility:
- * - role="banner" on outer element
- * - Semantic <header> element
- * - Responsive: stacks on mobile
- * - Sufficient color contrast for all text
+ * - role="banner" on <header>
+ * - Semantic navigation with aria-label
+ * - Keyboard-navigable links and theme toggle
+ * - Responsive layout
  */
 export default function NCHeader() {
   return (
     <header role="banner" className="nc-header">
       <div className="container">
-        <div className="d-flex align-items-center justify-content-between py-3 flex-wrap">
-          {/* Logo + Branding Area */}
-          <div className="d-flex align-items-center">
-            {/* Placeholder: NC.gov logo will be replaced with SVG/image */}
+        <div className="header-inner">
+          {/* Logo + Branding */}
+          <div className="header-brand">
             <a
               href="https://www.nc.gov"
-              className="nc-header__logo text-decoration-none d-flex align-items-center"
+              className="header-logo"
               aria-label="NC.gov - State of North Carolina"
             >
-              <span className="nc-header__logo-mark me-2" aria-hidden="true">
-                NC
-              </span>
-              <span className="nc-header__logo-text">.gov</span>
+              <span className="header-logo__mark" aria-hidden="true">NC</span>
+              <span className="header-logo__dot">.gov</span>
             </a>
 
-            <span
-              className="nc-header__divider mx-3"
-              aria-hidden="true"
-            />
+            <span className="header-divider" aria-hidden="true" />
 
-            <div className="nc-header__service">
-              <span className="nc-header__dept">NCDIT</span>
-              <span className="nc-header__service-name d-none d-sm-inline">
-                Document Converter
-              </span>
+            <div className="header-service">
+              <span className="header-service__dept">NCDIT</span>
+              <span className="header-service__name">Document Converter</span>
             </div>
           </div>
 
-          {/* Navigation area */}
-          <nav aria-label="Service navigation" className="nc-header__nav">
-            <a
-              href="/"
-              className="nc-header__nav-link"
-            >
-              Upload
-            </a>
-            <a
-              href="/dashboard"
-              className="nc-header__nav-link"
-            >
-              Dashboard
-            </a>
-          </nav>
+          {/* Navigation + Theme Toggle */}
+          <div className="header-actions">
+            <nav aria-label="Service navigation" className="header-nav">
+              <a href="/" className="header-nav__link">Upload</a>
+              <a href="/dashboard" className="header-nav__link">Dashboard</a>
+            </nav>
+            <ThemeToggle />
+          </div>
         </div>
       </div>
 
       <style jsx>{`
-        .nc-header {
-          background-color: var(--nc-white, #ffffff);
-          border-bottom: 3px solid var(--nc-navy, #003366);
-          font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
+        .header-inner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0.75rem 0;
+          gap: 1rem;
         }
-        .nc-header__logo-mark {
-          font-size: 1.75rem;
-          font-weight: bold;
-          color: var(--nc-navy, #003366);
+
+        .header-brand {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          min-width: 0;
+        }
+
+        .header-logo {
+          display: flex;
+          align-items: center;
+          text-decoration: none;
+          flex-shrink: 0;
+        }
+
+        .header-logo__mark {
+          font-family: var(--font-heading);
+          font-size: 1.5rem;
+          font-weight: 800;
+          color: var(--text-primary);
           line-height: 1;
         }
-        .nc-header__logo-text {
-          font-size: 1.75rem;
-          font-weight: normal;
-          color: var(--nc-action-blue, #1e79c8);
+
+        .header-logo__dot {
+          font-family: var(--font-heading);
+          font-size: 1.5rem;
+          font-weight: 400;
+          color: var(--accent-sky);
           line-height: 1;
         }
-        .nc-header__divider {
+
+        .header-divider {
           width: 1px;
-          height: 2rem;
-          background-color: var(--nc-border-gray, #dee2e6);
+          height: 1.75rem;
+          background: var(--border);
+          flex-shrink: 0;
         }
-        .nc-header__dept {
+
+        .header-service {
+          min-width: 0;
+        }
+
+        .header-service__dept {
           display: block;
-          font-size: 0.75rem;
-          font-weight: bold;
-          color: var(--nc-medium-gray, #6c757d);
+          font-family: var(--font-heading);
+          font-size: 0.7rem;
+          font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.1em;
+          color: var(--text-muted);
           line-height: 1.2;
         }
-        .nc-header__service-name {
+
+        .header-service__name {
           display: block;
-          font-size: 1.125rem;
-          font-weight: bold;
-          color: var(--nc-navy, #003366);
+          font-family: var(--font-heading);
+          font-size: 1rem;
+          font-weight: 600;
+          color: var(--text-primary);
           line-height: 1.3;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
-        .nc-header__nav {
+
+        .header-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          flex-shrink: 0;
+        }
+
+        .header-nav {
           display: flex;
           gap: 0.25rem;
         }
-        .nc-header__nav-link {
-          color: var(--nc-navy, #003366);
-          text-decoration: none;
-          font-size: 0.9375rem;
+
+        .header-nav__link {
+          font-family: var(--font-heading);
+          font-size: 0.875rem;
           font-weight: 600;
-          padding: 0.25rem 0.5rem;
-          border-radius: var(--nc-radius-sm, 0.25rem);
-          transition: background-color var(--nc-transition-fast, 150ms ease-in-out);
+          color: var(--text-secondary);
+          text-decoration: none;
+          padding: 0.4rem 0.75rem;
+          border-radius: var(--radius-md);
+          transition: all var(--transition-fast);
         }
-        .nc-header__nav-link:hover {
-          background-color: var(--nc-light-gray, #f5f5f5);
-          color: var(--nc-action-blue, #1e79c8);
+
+        .header-nav__link:hover {
+          color: var(--accent-sky);
+          background: var(--surface);
         }
 
         @media (max-width: 575.98px) {
-          .nc-header__logo-mark,
-          .nc-header__logo-text {
-            font-size: 1.25rem;
+          .header-logo__mark,
+          .header-logo__dot {
+            font-size: 1.2rem;
           }
-          .nc-header__divider {
-            height: 1.5rem;
+
+          .header-service__name {
+            font-size: 0.875rem;
           }
-          .nc-header__service-name {
-            font-size: 0.9375rem;
+
+          .header-nav__link {
+            font-size: 0.8125rem;
+            padding: 0.3rem 0.5rem;
           }
         }
       `}</style>

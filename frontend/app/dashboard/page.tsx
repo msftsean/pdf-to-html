@@ -17,10 +17,10 @@ import { deleteDocument, deleteAllDocuments } from '@/services/deleteService';
 // Types
 // ---------------------------------------------------------------------------
 
-interface SummaryCard {
+interface TileConfig {
   label: string;
   value: number;
-  variant: string; // Bootstrap color class
+  variant: string;
   icon: string;
 }
 
@@ -28,10 +28,6 @@ interface SummaryCard {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Check if all documents have reached a terminal state
- * (completed or failed). Returns false if there are no documents.
- */
 function allTerminal(documents: DocumentStatus[]): boolean {
   if (documents.length === 0) return false;
   return documents.every(
@@ -49,7 +45,7 @@ function allTerminal(documents: DocumentStatus[]): boolean {
  * US7 — Track Conversion Progress in Real-Time
  *
  * Features:
- * - Batch summary stats (total/pending/processing/completed/failed)
+ * - Metric tiles (runbook pattern) for batch summary
  * - ProgressTracker list showing each document
  * - Auto-refresh via statusService polling (3s default)
  * - Auto-stop polling when all documents reach terminal state
@@ -59,7 +55,6 @@ function allTerminal(documents: DocumentStatus[]): boolean {
  * - Semantic heading hierarchy (h1 > h2)
  * - aria-live region for summary changes
  * - Keyboard-navigable cards and controls
- * - NCDIT Digital Commons styling
  */
 export default function DashboardPage() {
   // -----------------------------------------------------------------------
@@ -85,13 +80,13 @@ export default function DashboardPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  // Delete state (T008 — individual delete)
+  // Delete state (T008)
   const [deleteTarget, setDeleteTarget] = useState<{id: string; name: string} | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
 
-  // Clear All state (T009 — bulk delete)
+  // Clear All state (T009)
   const [showClearAll, setShowClearAll] = useState(false);
   const [isClearingAll, setIsClearingAll] = useState(false);
   const clearAllTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -116,7 +111,6 @@ export default function DashboardPage() {
     const stopFn = startPolling((response) => {
       handleUpdate(response);
 
-      // Auto-stop when all documents are terminal
       if (allTerminal(response.documents)) {
         setIsPolling(false);
       }
@@ -129,11 +123,6 @@ export default function DashboardPage() {
       stopPollingRef.current = null;
     };
   }, [isPolling, handleUpdate]);
-
-  // -----------------------------------------------------------------------
-  // Error handling: patch the startPolling error path
-  // We listen for failed fetches by wrapping the service's console.error
-  // -----------------------------------------------------------------------
 
   useEffect(() => {
     const origConsoleError = console.error;
@@ -152,13 +141,10 @@ export default function DashboardPage() {
   }, []);
 
   // -----------------------------------------------------------------------
-  // Retry handler (re-upload would need the original file — here we just
-  // restart polling so the backend can re-process)
+  // Retry handler
   // -----------------------------------------------------------------------
 
   const handleRetry = useCallback((documentId: string) => {
-    // In a full implementation this would call the backend to re-trigger
-    // processing. For now we restart polling so the user sees updates.
     setIsPolling(true);
     console.info(`[Dashboard] Retry requested for document: ${documentId}`);
   }, []);
@@ -176,7 +162,6 @@ export default function DashboardPage() {
     setPreviewDoc(doc);
     setPreviewError(null);
     setPreviewLoading(false);
-    // Use the server-side proxy so the browser never hits Azurite directly
     setPreviewUrl(`/api/preview/${doc.document_id}`);
   }, []);
 
@@ -188,7 +173,7 @@ export default function DashboardPage() {
   }, []);
 
   // -----------------------------------------------------------------------
-  // Announce helper (T010) — sets aria-live text, clears after 5s
+  // Announce helper (T010)
   // -----------------------------------------------------------------------
 
   const announce = useCallback((text: string) => {
@@ -203,7 +188,6 @@ export default function DashboardPage() {
 
   const handleDeleteRequest = useCallback(
     (documentId: string, name: string) => {
-      // Capture the trigger element for focus return (T012)
       const activeEl = document.activeElement;
       if (activeEl instanceof HTMLButtonElement) {
         deleteTriggerRef.current = activeEl;
@@ -223,7 +207,6 @@ export default function DashboardPage() {
     try {
       await deleteDocument(deleteTarget.id);
 
-      // Optimistically remove from state
       setDocuments((prev) =>
         prev.filter((d) => d.document_id !== deleteTarget.id)
       );
@@ -240,7 +223,6 @@ export default function DashboardPage() {
       announce(`${deleteTarget.name} has been deleted.`);
       setDeleteTarget(null);
 
-      // Return focus to trigger (T012)
       setTimeout(() => {
         deleteTriggerRef.current?.focus();
         deleteTriggerRef.current = null;
@@ -261,7 +243,6 @@ export default function DashboardPage() {
     setDeleteTarget(null);
     setDeleteError(null);
 
-    // Return focus to trigger (T012)
     setTimeout(() => {
       deleteTriggerRef.current?.focus();
       deleteTriggerRef.current = null;
@@ -288,7 +269,6 @@ export default function DashboardPage() {
     try {
       await deleteAllDocuments();
 
-      // Clear all documents from state
       setDocuments([]);
       setSummary({
         total: 0,
@@ -298,13 +278,11 @@ export default function DashboardPage() {
         failed: 0,
       });
 
-      // Stop polling — nothing to track
       setIsPolling(false);
 
       announce('All documents have been deleted.');
       setShowClearAll(false);
 
-      // Return focus to trigger (T012)
       setTimeout(() => {
         clearAllTriggerRef.current?.focus();
         clearAllTriggerRef.current = null;
@@ -324,7 +302,6 @@ export default function DashboardPage() {
   const handleClearAllCancel = useCallback(() => {
     setShowClearAll(false);
 
-    // Return focus to trigger (T012)
     setTimeout(() => {
       clearAllTriggerRef.current?.focus();
       clearAllTriggerRef.current = null;
@@ -332,30 +309,15 @@ export default function DashboardPage() {
   }, []);
 
   // -----------------------------------------------------------------------
-  // Summary cards config
+  // Metric tile config
   // -----------------------------------------------------------------------
 
-  const summaryCards: SummaryCard[] = [
-    { label: 'Total', value: summary.total, variant: 'nc-navy', icon: '📋' },
-    {
-      label: 'Pending',
-      value: summary.pending,
-      variant: 'secondary',
-      icon: '⏳',
-    },
-    {
-      label: 'Processing',
-      value: summary.processing,
-      variant: 'primary',
-      icon: '🔄',
-    },
-    {
-      label: 'Completed',
-      value: summary.completed,
-      variant: 'success',
-      icon: '✅',
-    },
-    { label: 'Failed', value: summary.failed, variant: 'danger', icon: '❌' },
+  const tiles: TileConfig[] = [
+    { label: 'Total', value: summary.total, variant: 'brand', icon: '📋' },
+    { label: 'Pending', value: summary.pending, variant: 'muted', icon: '⏳' },
+    { label: 'Processing', value: summary.processing, variant: 'sky', icon: '🔄' },
+    { label: 'Completed', value: summary.completed, variant: 'emerald', icon: '✅' },
+    { label: 'Failed', value: summary.failed, variant: 'red', icon: '❌' },
   ];
 
   // -----------------------------------------------------------------------
@@ -365,26 +327,20 @@ export default function DashboardPage() {
   return (
     <>
       {/* ----------------------------------------------------------------
-          Page Header
+          Page Hero
           ---------------------------------------------------------------- */}
       <section className="dashboard-hero" aria-labelledby="dashboard-heading">
         <div className="container py-4">
-          <div className="d-flex align-items-center justify-content-between flex-wrap gap-3">
+          <div className="dashboard-hero__inner">
             <div>
-              <h1
-                id="dashboard-heading"
-                className="dashboard-hero__title h3 mb-1"
-              >
+              <h1 id="dashboard-heading" className="dashboard-hero__title">
                 Conversion Dashboard
               </h1>
-              <p className="dashboard-hero__subtitle mb-0">
+              <p className="dashboard-hero__subtitle">
                 Track your document conversions in real time.
               </p>
             </div>
-            <Link
-              href="/"
-              className="btn btn-outline-light btn-sm dashboard-hero__link"
-            >
+            <Link href="/" className="btn btn-outline-light btn-sm">
               ← Upload More
             </Link>
           </div>
@@ -393,9 +349,9 @@ export default function DashboardPage() {
 
       <div className="container py-4">
         {/* ----------------------------------------------------------------
-            Batch Summary Stats
+            Metric Tiles — Batch Summary
             ---------------------------------------------------------------- */}
-        <section aria-labelledby="summary-heading" className="mb-4">
+        <section aria-labelledby="summary-heading" className="mb-3">
           <h2 id="summary-heading" className="visually-hidden">
             Batch Summary
           </h2>
@@ -405,39 +361,16 @@ export default function DashboardPage() {
             {`${summary.total} documents: ${summary.completed} completed, ${summary.processing} processing, ${summary.pending} pending, ${summary.failed} failed.`}
           </div>
 
-          <div className="row g-3" data-testid="summary-cards">
-            {summaryCards.map((card) => (
-              <div key={card.label} className="col-6 col-md">
-                <div
-                  className={`card border-0 shadow-sm dashboard-summary-card ${
-                    card.variant === 'nc-navy'
-                      ? 'dashboard-summary-card--navy'
-                      : ''
-                  }`}
-                  data-testid={`summary-card-${card.label.toLowerCase()}`}
-                >
-                  <div className="card-body text-center py-3 px-2">
-                    <span
-                      className="d-block mb-1"
-                      style={{ fontSize: '1.25rem' }}
-                      aria-hidden="true"
-                    >
-                      {card.icon}
-                    </span>
-                    <span
-                      className={`d-block dashboard-summary-card__value ${
-                        card.variant === 'nc-navy'
-                          ? ''
-                          : `text-${card.variant}`
-                      }`}
-                    >
-                      {card.value}
-                    </span>
-                    <span className="d-block dashboard-summary-card__label">
-                      {card.label}
-                    </span>
-                  </div>
-                </div>
+          <div className="tiles-grid" data-testid="summary-cards">
+            {tiles.map((t, i) => (
+              <div
+                key={t.label}
+                className={`tile tile--${t.variant} animate-fadeInUp delay-${i + 1}`}
+                data-testid={`summary-card-${t.label.toLowerCase()}`}
+              >
+                <span className="tile__icon" aria-hidden="true">{t.icon}</span>
+                <span className="tile__value">{t.value}</span>
+                <span className="tile__label">{t.label}</span>
               </div>
             ))}
           </div>
@@ -456,18 +389,14 @@ export default function DashboardPage() {
         </div>
 
         {/* ----------------------------------------------------------------
-            Polling Status Indicator + Clear All (T009)
+            Section Header: Documents + Controls
             ---------------------------------------------------------------- */}
-        <div className="d-flex align-items-center justify-content-between mb-3">
-          <h2 className="h5 mb-0">Documents</h2>
-          <div className="d-flex align-items-center gap-2">
+        <div className="section-bar">
+          <h2 className="section-bar__title">Documents</h2>
+          <div className="section-bar__actions">
             {isPolling && (
-              <span className="badge bg-info text-dark" data-testid="polling-badge">
-                <span
-                  className="spinner-grow spinner-grow-sm me-1"
-                  role="status"
-                  aria-hidden="true"
-                />
+              <span className="badge bg-info" data-testid="polling-badge">
+                <span className="spinner-grow spinner-grow-sm" role="status" aria-hidden="true" />
                 Auto-refreshing
               </span>
             )}
@@ -537,15 +466,15 @@ export default function DashboardPage() {
         )}
 
         {/* ----------------------------------------------------------------
-            Loading Skeleton
+            Loading State
             ---------------------------------------------------------------- */}
         {isLoading && (
           <div
-            className="text-center py-5"
+            className="loading-state"
             data-testid="loading-state"
             role="status"
           >
-            <div className="spinner-border text-primary mb-3" aria-hidden="true">
+            <div className="spinner-border mb-3" aria-hidden="true">
               <span className="visually-hidden">Loading…</span>
             </div>
             <p className="text-muted mb-0">Loading document statuses…</p>
@@ -569,30 +498,22 @@ export default function DashboardPage() {
             ---------------------------------------------------------------- */}
         {previewDoc && (
           <div
-            className="dashboard-preview-overlay"
+            className="preview-overlay"
             data-testid="preview-overlay"
             role="dialog"
             aria-modal="true"
             aria-label={`Preview of ${previewDoc.name}`}
           >
-            <div className="dashboard-preview-panel">
+            <div className="preview-panel">
               {previewLoading && (
-                <div
-                  className="text-center py-5"
-                  data-testid="preview-panel-loading"
-                  role="status"
-                >
-                  <div className="spinner-border text-primary mb-3" aria-hidden="true" />
+                <div className="loading-state" data-testid="preview-panel-loading" role="status">
+                  <div className="spinner-border mb-3" aria-hidden="true" />
                   <p className="text-muted mb-0">Loading preview…</p>
                 </div>
               )}
 
               {previewError && (
-                <div
-                  className="alert alert-danger m-4"
-                  role="alert"
-                  data-testid="preview-panel-error"
-                >
+                <div className="alert alert-danger m-4" role="alert" data-testid="preview-panel-error">
                   <p className="mb-2">{previewError}</p>
                   <button
                     type="button"
@@ -624,8 +545,9 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+
         {/* ----------------------------------------------------------------
-            Individual Delete Confirmation Dialog (T008)
+            Delete Confirmation Dialog (T008)
             ---------------------------------------------------------------- */}
         <ConfirmDialog
           isOpen={deleteTarget !== null}
@@ -664,85 +586,109 @@ export default function DashboardPage() {
           ---------------------------------------------------------------- */}
       <style jsx>{`
         .dashboard-hero {
-          background: linear-gradient(
-            135deg,
-            var(--nc-navy, #003366) 0%,
-            var(--nc-navy-dark, #002244) 100%
-          );
-          color: var(--nc-white, #ffffff);
+          background: linear-gradient(135deg, #0c1a30 0%, #0a1628 50%, #0f2340 100%);
+          border-bottom: 1px solid var(--border);
         }
+
+        [data-theme="light"] .dashboard-hero {
+          background: linear-gradient(135deg, var(--nc-navy) 0%, var(--nc-navy-dark) 100%);
+        }
+
+        .dashboard-hero__inner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 1rem;
+        }
+
         .dashboard-hero__title {
-          font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
-          color: var(--nc-white, #ffffff);
-        }
-        .dashboard-hero__subtitle {
-          font-family: var(--nc-font-body, Georgia, serif);
-          color: rgba(255, 255, 255, 0.85);
-          font-size: 0.9375rem;
-        }
-        .dashboard-hero__link {
-          font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
-          font-weight: 600;
-          font-size: 0.875rem;
-          border-color: rgba(255, 255, 255, 0.5);
-          color: var(--nc-white, #ffffff);
-        }
-        .dashboard-hero__link:hover,
-        .dashboard-hero__link:focus-visible {
-          background-color: rgba(255, 255, 255, 0.15);
-          border-color: var(--nc-white, #ffffff);
-          color: var(--nc-white, #ffffff);
-        }
-
-        .dashboard-summary-card {
-          border-radius: var(--nc-radius-md, 0.375rem);
-          transition: transform var(--nc-transition-fast, 150ms ease-in-out);
-        }
-        .dashboard-summary-card:hover {
-          transform: translateY(-2px);
-        }
-        .dashboard-summary-card--navy {
-          background-color: var(--nc-navy, #003366);
-          color: var(--nc-white, #ffffff);
-        }
-        .dashboard-summary-card__value {
-          font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
+          font-family: var(--font-heading);
           font-size: 1.75rem;
-          font-weight: bold;
-          line-height: 1.2;
-        }
-        .dashboard-summary-card--navy .dashboard-summary-card__value {
-          color: var(--nc-white, #ffffff);
-        }
-        .dashboard-summary-card__label {
-          font-family: var(--nc-font-body, Georgia, serif);
-          font-size: 0.8125rem;
-          color: var(--nc-medium-gray, #6c757d);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-        .dashboard-summary-card--navy .dashboard-summary-card__label {
-          color: rgba(255, 255, 255, 0.8);
+          font-weight: 800;
+          color: #fff;
+          margin-bottom: 0.25rem;
         }
 
-        .dashboard-preview-overlay {
+        .dashboard-hero__subtitle {
+          font-family: var(--font-body);
+          font-size: 0.9375rem;
+          color: rgba(255, 255, 255, 0.7);
+          margin-bottom: 0;
+        }
+
+        .tiles-grid {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 0.75rem;
+        }
+
+        @media (max-width: 767.98px) {
+          .tiles-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+
+        @media (max-width: 575.98px) {
+          .tiles-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        .section-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 1rem;
+          padding-bottom: 0.75rem;
+          border-bottom: 1px solid var(--border);
+        }
+
+        .section-bar__title {
+          font-family: var(--font-heading);
+          font-size: 1.15rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          margin: 0;
+        }
+
+        .section-bar__actions {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .loading-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 3rem 1rem;
+        }
+
+        .preview-overlay {
           position: fixed;
           inset: 0;
           z-index: 1050;
-          background-color: rgba(0, 0, 0, 0.6);
+          background: var(--overlay);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
           display: flex;
           align-items: center;
           justify-content: center;
           padding: 1rem;
+          animation: fadeIn 0.2s ease;
         }
-        .dashboard-preview-panel {
+
+        .preview-panel {
           width: 100%;
           max-width: 960px;
           max-height: 90vh;
           overflow-y: auto;
-          border-radius: var(--nc-radius-lg, 0.5rem);
-          background-color: var(--nc-white, #ffffff);
-          box-shadow: var(--nc-shadow-lg, 0 10px 30px rgba(0, 0, 0, 0.2));
+          border-radius: var(--radius-lg);
+          background: var(--card-bg);
+          border: 1px solid var(--border);
+          box-shadow: var(--shadow-lg);
         }
       `}</style>
     </>

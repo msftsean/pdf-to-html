@@ -5,13 +5,13 @@ import { useState, useCallback } from 'react';
 /**
  * GovBanner — Demo Disclaimer Banner
  *
- * Displays a prominent disclaimer that this is NOT an official government website.
- * Uses amber/yellow background to visually distinguish from official NC.gov sites.
+ * Prominent disclaimer: NOT an official government website.
+ * Amber accent in dark mode, stays visible in light mode.
  *
  * Accessibility:
  * - aria-expanded on toggle button
  * - Keyboard-navigable expand/collapse
- * - Sufficient color contrast (dark text on amber = 9.7:1 ratio)
+ * - Sufficient contrast: dark text on amber (9.7:1)
  */
 export default function GovBanner() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -21,21 +21,16 @@ export default function GovBanner() {
   }, []);
 
   return (
-    <section
-      className="gov-banner"
-      aria-label="Demo website disclaimer"
-    >
+    <section className="gov-banner" aria-label="Demo website disclaimer">
       <div className="container">
-        <div className="d-flex align-items-center justify-content-between py-1">
+        <div className="banner-row">
           <p className="gov-banner__text mb-0">
-            <span className="gov-banner__icon me-2" aria-hidden="true">
-              ⚠️
-            </span>
+            <span className="banner-icon" aria-hidden="true">⚠️</span>
             An <strong>UN</strong>official website of the State of North Carolina. For demo purposes only.
           </p>
           <button
             type="button"
-            className="gov-banner__toggle btn btn-link text-decoration-none p-0 ms-2"
+            className="gov-banner__toggle"
             aria-expanded={isExpanded}
             aria-controls="gov-banner-details"
             onClick={handleToggle}
@@ -50,39 +45,31 @@ export default function GovBanner() {
         {isExpanded && (
           <div
             id="gov-banner-details"
-            className="gov-banner__details pb-3"
+            className="gov-banner__details"
             role="region"
             aria-label="About this demo application"
           >
-            <div className="row g-3">
-              <div className="col-md-6">
-                <div className="d-flex align-items-start">
-                  <span className="me-2 mt-1" aria-hidden="true">📄</span>
-                  <div>
-                    <p className="mb-1">
-                      <strong>What is this?</strong>
-                    </p>
-                    <p className="mb-0" style={{ fontSize: '0.85rem' }}>
-                      This is a demo of the PDF to HTML converter for{' '}
-                      <strong>WCAG 2.1 AA</strong> accessibility compliance.
-                      It converts PDF, DOCX, and PPTX documents into accessible HTML.
-                    </p>
-                  </div>
+            <div className="banner-details-grid">
+              <div className="banner-detail-item">
+                <span className="banner-detail-icon" aria-hidden="true">📄</span>
+                <div>
+                  <p className="mb-1"><strong>What is this?</strong></p>
+                  <p className="mb-0 banner-detail-text">
+                    This is a demo of the PDF to HTML converter for{' '}
+                    <strong>WCAG 2.1 AA</strong> accessibility compliance.
+                    It converts PDF, DOCX, and PPTX documents into accessible HTML.
+                  </p>
                 </div>
               </div>
-              <div className="col-md-6">
-                <div className="d-flex align-items-start">
-                  <span className="me-2 mt-1" aria-hidden="true">🔬</span>
-                  <div>
-                    <p className="mb-1">
-                      <strong>Not an official NC.gov site</strong>
-                    </p>
-                    <p className="mb-0" style={{ fontSize: '0.85rem' }}>
-                      This application is a <strong>technology demonstration</strong>{' '}
-                      by NCDIT. It is not an official State of North Carolina
-                      service. Do not upload sensitive or confidential documents.
-                    </p>
-                  </div>
+              <div className="banner-detail-item">
+                <span className="banner-detail-icon" aria-hidden="true">🔬</span>
+                <div>
+                  <p className="mb-1"><strong>Not an official NC.gov site</strong></p>
+                  <p className="mb-0 banner-detail-text">
+                    This application is a <strong>technology demonstration</strong>{' '}
+                    by NCDIT. It is not an official State of North Carolina
+                    service. Do not upload sensitive or confidential documents.
+                  </p>
                 </div>
               </div>
             </div>
@@ -91,29 +78,59 @@ export default function GovBanner() {
       </div>
 
       <style jsx>{`
-        .gov-banner {
-          background-color: #d4a017;
-          color: #1a1a1a;
-          font-family: var(--nc-font-body, Georgia, serif);
-          font-size: 0.8125rem;
+        .banner-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0.35rem 0;
+          gap: 0.75rem;
         }
-        .gov-banner__text {
-          font-size: 0.8125rem;
-          line-height: 1.4;
-          color: #1a1a1a;
+
+        .banner-icon {
+          margin-right: 0.5rem;
         }
+
         .gov-banner__toggle {
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 0.25rem 0.5rem;
+          border-radius: var(--radius-sm);
+          font-family: var(--font-body);
+          white-space: nowrap;
           color: #1a1a1a !important;
         }
+
         .gov-banner__toggle:focus-visible {
           outline: 2px solid #1a1a1a;
           outline-offset: 2px;
         }
-        .gov-banner__details {
-          border-top: 1px solid rgba(0, 0, 0, 0.2);
-          margin-top: 0.5rem;
-          padding-top: 0.75rem;
-          color: #1a1a1a;
+
+        .banner-details-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+        }
+
+        @media (max-width: 767.98px) {
+          .banner-details-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .banner-detail-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.5rem;
+        }
+
+        .banner-detail-icon {
+          margin-top: 0.2rem;
+          flex-shrink: 0;
+        }
+
+        .banner-detail-text {
+          font-size: 0.85rem;
         }
       `}</style>
     </section>

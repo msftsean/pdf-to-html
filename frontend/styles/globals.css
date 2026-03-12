@@ -1,170 +1,790 @@
 /* ==========================================================================
    Global Styles — NCDIT Document Converter
-   Imports Bootstrap 5 + Digital Commons design tokens
+   Runbook-inspired design system. No Bootstrap.
    ========================================================================== */
 
-@import 'bootstrap/dist/css/bootstrap.min.css';
 @import './digital-commons.css';
 
-/* --------------------------------------------------------------------------
+/* ==========================================================================
+   CSS Reset (minimal)
+   ========================================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body, h1, h2, h3, h4, h5, h6, p, ul, ol, figure, blockquote {
+  margin: 0;
+}
+
+img, svg { display: block; max-width: 100%; }
+
+/* ==========================================================================
    Base Typography
-   -------------------------------------------------------------------------- */
+   ========================================================================== */
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
 body {
-  font-family: var(--nc-font-body);
-  color: var(--nc-dark-gray);
-  line-height: 1.6;
-  background-color: var(--nc-white);
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  background-color: var(--deep-bg);
+  transition: var(--theme-transition);
+  min-height: 100vh;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--nc-font-heading);
-  font-weight: bold;
-  color: var(--nc-navy);
+  font-family: var(--font-heading);
+  color: var(--text-primary);
+  line-height: 1.2;
 }
 
-/* --------------------------------------------------------------------------
-   Links
-   -------------------------------------------------------------------------- */
+h1 { font-size: 3rem; font-weight: 800; }
+h2 { font-size: 2.25rem; font-weight: 700; }
+h3 { font-size: 1.75rem; font-weight: 700; }
+h4 { font-size: 1.35rem; font-weight: 600; }
+h5 { font-size: 1.15rem; font-weight: 600; }
+h6 { font-size: 1rem; font-weight: 600; }
+
+.h3 { font-size: 1.75rem; font-weight: 700; font-family: var(--font-heading); }
+.h5 { font-size: 1.15rem; font-weight: 600; font-family: var(--font-heading); }
+.h6 { font-size: 1rem; font-weight: 600; font-family: var(--font-heading); }
+
+p { margin-bottom: var(--space-md); }
+
+small, .small { font-size: 0.875rem; }
+
+code, pre {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+code {
+  background-color: var(--surface);
+  padding: 0.125rem 0.375rem;
+  border-radius: var(--radius-sm);
+  color: var(--accent-sky);
+}
 
 a {
-  color: var(--nc-action-blue);
-  transition: color var(--nc-transition-fast);
+  color: var(--accent-sky);
+  text-decoration: none;
+  transition: color var(--transition-fast);
 }
 
-a:hover {
-  color: var(--nc-action-blue-hover);
-}
+a:hover { color: var(--accent-sky); opacity: 0.85; }
 
-/* --------------------------------------------------------------------------
-   Focus Indicators — WCAG 2.1 AA Compliance
-   Visible focus ring on all interactive elements for keyboard navigation.
-   -------------------------------------------------------------------------- */
+/* ==========================================================================
+   Focus Indicators — WCAG 2.1 AA
+   ========================================================================== */
 
 :focus-visible {
-  outline: 3px solid var(--nc-action-blue);
+  outline: 3px solid var(--accent-sky);
   outline-offset: 2px;
 }
 
-/* --------------------------------------------------------------------------
-   Skip Navigation Link — WCAG 2.1 AA
-   Hidden off-screen until focused, allows keyboard users to skip
-   repetitive navigation and jump straight to main content.
-   -------------------------------------------------------------------------- */
+/* ==========================================================================
+   Skip Navigation — WCAG 2.1 AA
+   ========================================================================== */
 
 .skip-nav {
   position: absolute;
   left: -9999px;
-  z-index: 999;
-  padding: 0.5rem 1rem;
-  background: var(--nc-navy);
-  color: var(--nc-white);
+  z-index: 9999;
+  padding: 0.75rem 1.25rem;
+  background: var(--accent-sky);
+  color: var(--deep-bg);
   text-decoration: none;
-  font-family: var(--nc-font-heading);
+  font-family: var(--font-heading);
+  font-weight: 600;
   font-size: 0.875rem;
-  border-radius: 0 0 var(--nc-radius-sm) 0;
+  border-radius: 0 0 var(--radius-md) 0;
 }
 
 .skip-nav:focus {
   left: 0;
   top: 0;
-  color: var(--nc-white);
+  color: var(--deep-bg);
 }
 
-/* --------------------------------------------------------------------------
+/* ==========================================================================
+   Layout — Container & Grid
+   ========================================================================== */
+
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--space-lg);
+  padding-right: var(--space-lg);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-left: -0.5rem;
+  margin-right: -0.5rem;
+}
+
+.row.g-3 > * { padding: 0.5rem; }
+.row.g-4 > * { padding: 0.75rem; }
+
+.col-6 { width: 50%; }
+.col-md { flex: 1 0 0%; }
+
+@media (min-width: 768px) {
+  .col-md-4 { width: 33.333%; }
+  .col-md-6 { width: 50%; }
+}
+
+@media (max-width: 767.98px) {
+  .col-md-4, .col-md-6 { width: 100%; }
+}
+
+/* ==========================================================================
    Utility Classes
-   -------------------------------------------------------------------------- */
+   ========================================================================== */
 
-.nc-text-navy { color: var(--nc-navy); }
-.nc-bg-navy { background-color: var(--nc-navy); }
-.nc-text-action { color: var(--nc-action-blue); }
-.nc-bg-light { background-color: var(--nc-light-gray); }
+/* Display */
+.d-flex { display: flex; }
+.d-inline-block { display: inline-block; }
+.d-block { display: block; }
+.d-none { display: none; }
+.flex-column { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.align-items-center { align-items: center; }
+.align-items-start { align-items: flex-start; }
+.justify-content-between { justify-content: space-between; }
+.justify-content-center { justify-content: center; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 1rem; }
+.min-w-0 { min-width: 0; }
+.w-100 { width: 100%; }
 
-/* --------------------------------------------------------------------------
-   Hero Section — Landing Page
-   -------------------------------------------------------------------------- */
+/* Spacing */
+.m-0 { margin: 0; }
+.m-4 { margin: 1.5rem; }
+.mb-0 { margin-bottom: 0 !important; }
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 1rem; }
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 1rem; }
+.mt-4 { margin-top: 1.5rem; }
+.me-1 { margin-right: 0.25rem; }
+.me-2 { margin-right: 0.5rem; }
+.ms-1 { margin-left: 0.25rem; }
+.ms-2 { margin-left: 0.5rem; }
+.ms-auto { margin-left: auto; }
+.p-0 { padding: 0; }
+.p-3 { padding: 1rem; }
+.px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+.px-3 { padding-left: 1rem; padding-right: 1rem; }
+.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.py-3 { padding-top: 1rem; padding-bottom: 1rem; }
+.py-4 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+.py-5 { padding-top: 3rem; padding-bottom: 3rem; }
+.pb-3 { padding-bottom: 1rem; }
+.pt-3 { padding-top: 1rem; }
 
-.nc-hero {
-  background: linear-gradient(
-    135deg,
-    var(--nc-navy) 0%,
-    var(--nc-navy-dark) 100%
-  );
-  color: var(--nc-white);
+/* Text */
+.text-center { text-align: center; }
+.text-muted { color: var(--text-muted) !important; }
+.text-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.text-primary { color: var(--accent-sky) !important; }
+.text-dark { color: var(--text-primary) !important; }
+.text-warning { color: var(--accent-amber) !important; }
+.text-decoration-none { text-decoration: none !important; }
+.fw-semibold { font-weight: 600; }
+
+/* Position */
+.position-relative { position: relative; }
+
+/* Border */
+.border-0 { border: 0 !important; }
+.border-top { border-top: 1px solid var(--border); }
+.border-secondary { border-color: var(--border) !important; }
+.rounded-0 { border-radius: 0 !important; }
+
+/* Lists */
+.list-unstyled { list-style: none; padding-left: 0; }
+
+/* Visibility */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }
 
-.nc-hero__title {
-  font-family: var(--nc-font-heading);
-  font-weight: bold;
-  font-size: 2.5rem;
-  color: var(--nc-white);
-  line-height: 1.15;
+/* Responsive display */
+@media (min-width: 576px) {
+  .d-sm-inline { display: inline !important; }
 }
-
-.nc-hero__subtitle {
-  font-family: var(--nc-font-body);
-  font-size: 1.125rem;
-  color: rgba(255, 255, 255, 0.9);
-  line-height: 1.6;
-}
-
 @media (max-width: 575.98px) {
-  .nc-hero__title {
-    font-size: 1.75rem;
-  }
-  .nc-hero__subtitle {
-    font-size: 1rem;
-  }
+  .d-none.d-sm-inline { display: none !important; }
 }
 
-/* --------------------------------------------------------------------------
-   Supported Formats Card
-   -------------------------------------------------------------------------- */
+/* ==========================================================================
+   Cards — Frosted Glass (Runbook Pattern)
+   ========================================================================== */
 
-.nc-format-card__icon {
-  font-size: 2.5rem;
-  display: block;
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: var(--theme-transition), transform var(--transition-fast), box-shadow var(--transition-fast);
+  overflow: hidden;
 }
 
-/* --------------------------------------------------------------------------
-   How It Works Steps
-   -------------------------------------------------------------------------- */
+.card:hover {
+  border-color: var(--border-hover);
+}
 
-.nc-step {
+.card-body {
+  padding: var(--space-lg);
+}
+
+.card-header {
+  padding: 0.75rem var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+}
+
+.shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+
+/* ==========================================================================
+   Metric Tiles (Runbook Pattern)
+   ========================================================================== */
+
+.tile {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg) var(--space-md);
+  text-align: center;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
   position: relative;
+  overflow: hidden;
 }
 
-.nc-step__number {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  background-color: var(--nc-navy);
-  color: var(--nc-white);
-  font-family: var(--nc-font-heading);
-  font-weight: bold;
-  font-size: 0.9rem;
+.tile::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.tile:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.tile--sky::before { background: var(--accent-sky); }
+.tile--emerald::before { background: var(--accent-emerald); }
+.tile--amber::before { background: var(--accent-amber); }
+.tile--red::before { background: var(--accent-red); }
+.tile--brand::before { background: var(--nc-brand); }
+.tile--muted::before { background: var(--text-muted); }
+
+.tile__icon {
+  font-size: 1.25rem;
   margin-bottom: 0.25rem;
+  display: block;
 }
 
-.nc-step__icon {
-  display: block;
+.tile__value {
+  font-family: var(--font-heading);
   font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  display: block;
+}
+
+.tile--sky .tile__value { color: var(--accent-sky); }
+.tile--emerald .tile__value { color: var(--accent-emerald); }
+.tile--amber .tile__value { color: var(--accent-amber); }
+.tile--red .tile__value { color: var(--accent-red); }
+.tile--brand .tile__value { color: var(--accent-sky); }
+.tile--muted .tile__value { color: var(--text-secondary); }
+
+.tile__label {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  display: block;
   margin-top: 0.25rem;
 }
 
-/* --------------------------------------------------------------------------
-   Government Banner Styles (GovBanner Component)
-   Critical styles to prevent FOUC - scoped styles in component JSX enhance these
-   -------------------------------------------------------------------------- */
+/* ==========================================================================
+   Badges / Pills
+   ========================================================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.3em 0.75em;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.bg-secondary {
+  background: rgba(100, 116, 139, 0.2);
+  color: var(--text-secondary);
+}
+
+.bg-primary, .bg-info {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-sky);
+}
+
+.bg-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-emerald);
+}
+
+.bg-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--accent-red);
+}
+
+.bg-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-amber);
+}
+
+.text-info { color: var(--accent-sky); }
+
+/* ==========================================================================
+   Buttons — Custom (No Bootstrap)
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  white-space: nowrap;
+  line-height: 1.5;
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+
+.btn:disabled, .btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-sm {
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.875rem;
+}
+
+/* Primary */
+.btn-primary {
+  background: var(--accent-sky);
+  color: var(--deep-bg);
+  border-color: var(--accent-sky);
+}
+.btn-primary:hover:not(:disabled) {
+  background: #60ccff;
+  border-color: #60ccff;
+  box-shadow: var(--shadow-glow-sky);
+}
+
+/* Danger */
+.btn-danger {
+  background: var(--accent-red);
+  color: #fff;
+  border-color: var(--accent-red);
+}
+.btn-danger:hover:not(:disabled) {
+  background: #f87171;
+  border-color: #f87171;
+}
+
+/* Warning */
+.btn-warning {
+  background: var(--accent-amber);
+  color: var(--deep-bg);
+  border-color: var(--accent-amber);
+}
+.btn-warning:hover:not(:disabled) {
+  background: #fbbf24;
+  border-color: #fbbf24;
+}
+
+/* Outline variants */
+.btn-outline-primary {
+  border-color: var(--accent-sky);
+  color: var(--accent-sky);
+}
+.btn-outline-primary:hover:not(:disabled) {
+  background: var(--accent-sky);
+  color: var(--deep-bg);
+}
+
+.btn-outline-secondary {
+  border-color: var(--text-muted);
+  color: var(--text-secondary);
+}
+.btn-outline-secondary:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.btn-outline-danger {
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+}
+.btn-outline-danger:hover:not(:disabled) {
+  background: var(--accent-red);
+  color: #fff;
+}
+
+.btn-outline-warning {
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+}
+.btn-outline-warning:hover:not(:disabled) {
+  background: var(--accent-amber);
+  color: var(--deep-bg);
+}
+
+.btn-outline-light {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+}
+.btn-outline-light:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.7);
+  color: #fff;
+}
+
+.btn-link {
+  background: transparent;
+  border: none;
+  color: var(--accent-sky);
+  padding: 0;
+  text-decoration: underline;
+}
+.btn-link:hover { opacity: 0.8; }
+
+/* Close button */
+.btn-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  line-height: 1;
+}
+.btn-close::before { content: '✕'; }
+.btn-close:hover { color: var(--text-primary); background: var(--surface); }
+
+.btn-close-white { color: rgba(255,255,255,0.7); }
+.btn-close-white:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+.btn-close-sm { width: 1.25rem; height: 1.25rem; font-size: 0.875rem; }
+
+/* ==========================================================================
+   Alerts / Callouts (Runbook Pattern)
+   ========================================================================== */
+
+.alert {
+  font-family: var(--font-body);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
+  border-left: 4px solid;
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.alert-warning {
+  border-left-color: var(--accent-amber);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.alert-danger {
+  border-left-color: var(--accent-red);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.alert-info {
+  border-left-color: var(--accent-sky);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.alert-success {
+  border-left-color: var(--accent-emerald);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.callout-critical {
+  border-left-color: var(--accent-red);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.callout-warning {
+  border-left-color: var(--accent-amber);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.callout-info {
+  border-left-color: var(--accent-sky);
+  background: rgba(56, 189, 248, 0.06);
+}
+
+/* ==========================================================================
+   Progress Bars
+   ========================================================================== */
+
+.progress {
+  height: 0.5rem;
+  background: var(--surface);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--accent-sky);
+  border-radius: var(--radius-full);
+  transition: width 200ms ease;
+}
+
+.progress-bar-striped {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255,255,255,0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255,255,255,0.15) 50%,
+    rgba(255,255,255,0.15) 75%,
+    transparent 75%
+  );
+  background-size: 1rem 1rem;
+}
+
+.progress-bar-animated {
+  animation: progressStripe 1s linear infinite;
+}
+
+/* ==========================================================================
+   Spinners
+   ========================================================================== */
+
+.spinner-border {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent-sky);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
+  border-width: 2px;
+}
+
+.spinner-grow {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  background: var(--accent-sky);
+  border-radius: 50%;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.spinner-grow-sm {
+  width: 0.5rem;
+  height: 0.5rem;
+}
+
+/* ==========================================================================
+   Tables (Runbook Pattern)
+   ========================================================================== */
+
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead th {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+tbody td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+tbody tr:hover {
+  background: var(--surface);
+}
+
+/* ==========================================================================
+   Form Inputs
+   ========================================================================== */
+
+input[type="text"],
+input[type="email"],
+input[type="search"],
+input[type="url"],
+input[type="number"],
+textarea,
+select {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 0.6rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  width: 100%;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent-sky);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+  outline: none;
+}
+
+::placeholder {
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Section Labels / Gradient Labels (Runbook Pattern)
+   ========================================================================== */
+
+.section-label {
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, var(--border), transparent);
+}
+
+/* ==========================================================================
+   Animation Classes
+   ========================================================================== */
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.6s ease both;
+}
+
+.animate-slideDown {
+  animation: slideDown 0.4s ease both;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease both;
+}
+
+/* Stagger delays */
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+.delay-4 { animation-delay: 0.4s; }
+
+/* ==========================================================================
+   Government Banner (Component Base Styles)
+   ========================================================================== */
 
 .gov-banner {
-  background-color: #d4a017;
+  background-color: var(--accent-amber);
   color: #1a1a1a;
-  font-family: var(--nc-font-body, Georgia, serif);
+  font-family: var(--font-body);
   font-size: 0.8125rem;
+  transition: var(--theme-transition);
+}
+
+[data-theme="light"] .gov-banner {
+  background-color: #f59e0b;
 }
 
 .gov-banner__text {
@@ -189,163 +809,82 @@ a:hover {
   color: #1a1a1a;
 }
 
-/* --------------------------------------------------------------------------
-   NC Header Styles (NCHeader Component)
-   Critical styles to prevent FOUC - scoped styles in component JSX enhance these
-   -------------------------------------------------------------------------- */
+/* ==========================================================================
+   NC Header (Component Base Styles)
+   ========================================================================== */
 
 .nc-header {
-  background-color: var(--nc-white, #ffffff);
-  border-bottom: 3px solid var(--nc-navy, #003366);
-  font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(10, 22, 40, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-heading);
+  animation: slideDown 0.4s ease;
+  transition: var(--theme-transition);
 }
 
-.nc-header__logo-mark {
-  font-size: 1.75rem;
-  font-weight: bold;
-  color: var(--nc-navy, #003366);
-  line-height: 1;
+[data-theme="light"] .nc-header {
+  background: rgba(255, 255, 255, 0.9);
 }
 
-.nc-header__logo-text {
-  font-size: 1.75rem;
-  font-weight: normal;
-  color: var(--nc-action-blue, #1e79c8);
-  line-height: 1;
+.nc-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(to right, var(--accent-sky), var(--accent-emerald), var(--accent-amber));
 }
 
-.nc-header__divider {
-  width: 1px;
-  height: 2rem;
-  background-color: var(--nc-border-gray, #dee2e6);
-}
-
-.nc-header__dept {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: bold;
-  color: var(--nc-medium-gray, #6c757d);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  line-height: 1.2;
-}
-
-.nc-header__service-name {
-  display: block;
-  font-size: 1.125rem;
-  font-weight: bold;
-  color: var(--nc-navy, #003366);
-  line-height: 1.3;
-}
-
-.nc-header__nav {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.nc-header__nav-link {
-  color: var(--nc-navy, #003366);
-  text-decoration: none;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--nc-radius-sm, 0.25rem);
-  transition: background-color var(--nc-transition-fast, 150ms ease-in-out);
-}
-
-.nc-header__nav-link:hover {
-  background-color: var(--nc-light-gray, #f5f5f5);
-  color: var(--nc-action-blue, #1e79c8);
-}
-
-/* --------------------------------------------------------------------------
-   NC Footer Styles (NCFooter Component)
-   Critical styles to prevent FOUC - scoped styles in component JSX enhance these
-   -------------------------------------------------------------------------- */
+/* ==========================================================================
+   NC Footer (Component Base Styles)
+   ========================================================================== */
 
 .nc-footer {
-  background-color: var(--nc-navy, #003366);
-  color: var(--nc-white, #ffffff);
-  font-family: var(--nc-font-body, Georgia, serif);
+  background: var(--card-bg);
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  transition: var(--theme-transition);
 }
 
-.nc-footer__logo {
-  font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: var(--nc-white, #ffffff);
+/* ==========================================================================
+   Responsive Breakpoints
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.75rem; }
+  h3 { font-size: 1.35rem; }
+
+  .container {
+    padding-left: var(--space-md);
+    padding-right: var(--space-md);
+  }
+
+  .tile__value { font-size: 1.5rem; }
 }
 
-.nc-footer__logo-accent {
-  font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
-  font-size: 1.5rem;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.nc-footer__tagline {
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.nc-footer__heading {
-  font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
-  font-size: 0.9375rem;
-  font-weight: bold;
-  color: var(--nc-white, #ffffff);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.75rem;
-}
-
-.nc-footer__link {
-  color: rgba(255, 255, 255, 0.85);
-  text-decoration: none;
-  font-size: 0.9375rem;
-  display: inline-block;
-  padding: 0.25rem 0;
-  transition: color var(--nc-transition-fast, 150ms ease-in-out);
-}
-
-.nc-footer__link:hover,
-.nc-footer__link:focus {
-  color: var(--nc-white, #ffffff);
-  text-decoration: underline;
-}
-
-.nc-footer__social-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
-  color: var(--nc-white, #ffffff);
-  text-decoration: none;
-  font-size: 1rem;
-  transition: background-color var(--nc-transition-fast, 150ms ease-in-out);
-}
-
-.nc-footer__social-link:hover,
-.nc-footer__social-link:focus {
-  background: rgba(255, 255, 255, 0.3);
-  color: var(--nc-white, #ffffff);
-}
-
-.nc-footer__copyright {
-  border-color: rgba(255, 255, 255, 0.2) !important;
-}
-
-/* Responsive adjustments for header */
 @media (max-width: 575.98px) {
-  .nc-header__logo-mark,
-  .nc-header__logo-text {
-    font-size: 1.25rem;
+  body { font-size: 15px; }
+  h1 { font-size: 1.75rem; }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+  body {
+    background: #fff;
+    color: #000;
   }
-  .nc-header__divider {
-    height: 1.5rem;
-  }
-  .nc-header__service-name {
-    font-size: 0.9375rem;
+
+  .nc-header, .nc-footer, .gov-banner, .skip-nav, .btn {
+    display: none !important;
   }
 }

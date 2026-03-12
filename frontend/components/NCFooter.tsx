@@ -1,16 +1,15 @@
 'use client';
 
 /**
- * NCFooter — NC.gov Standard Footer
+ * NCFooter — Runbook-styled Footer
  *
- * Government-standard footer with required links:
- * NC.gov, Accessibility, Privacy Policy, Contact.
+ * Dark surface background, clean minimal layout.
+ * NC.gov links, copyright, social media placeholders.
  *
  * Accessibility:
- * - role="contentinfo" on <footer> element
- * - All links are keyboard-navigable
- * - White text on navy: 11.8:1 contrast ratio (exceeds AA)
- * - Social media placeholder area for future integration
+ * - role="contentinfo" on <footer>
+ * - All links keyboard-navigable
+ * - Sufficient contrast in both themes
  */
 export default function NCFooter() {
   const currentYear = new Date().getFullYear();
@@ -18,55 +17,40 @@ export default function NCFooter() {
   return (
     <footer role="contentinfo" className="nc-footer">
       <div className="container py-4">
-        <div className="row g-4">
+        <div className="footer-grid">
           {/* Branding Column */}
-          <div className="col-md-4">
-            <div className="nc-footer__brand mb-3">
-              <span className="nc-footer__logo" aria-hidden="true">
-                NC
-              </span>
-              <span className="nc-footer__logo-accent">.gov</span>
+          <div className="footer-brand">
+            <div className="footer-logo-row">
+              <span className="footer-logo" aria-hidden="true">NC</span>
+              <span className="footer-logo-accent">.gov</span>
             </div>
-            <p className="nc-footer__tagline mb-0">
+            <p className="footer-tagline">
               An official website of the State of North Carolina
             </p>
           </div>
 
           {/* Links Column */}
-          <div className="col-md-4">
-            <h2 className="nc-footer__heading">Resources</h2>
+          <div>
+            <h2 className="footer-heading">Resources</h2>
             <nav aria-label="Footer navigation">
-              <ul className="nc-footer__links list-unstyled mb-0">
+              <ul className="footer-links">
                 <li>
-                  <a
-                    href="https://www.nc.gov"
-                    className="nc-footer__link"
-                    rel="noopener noreferrer"
-                  >
+                  <a href="https://www.nc.gov" className="footer-link" rel="noopener noreferrer">
                     NC.gov
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="https://www.nc.gov/accessibility"
-                    className="nc-footer__link"
-                  >
+                  <a href="https://www.nc.gov/accessibility" className="footer-link">
                     Accessibility
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="https://www.nc.gov/privacy-policy"
-                    className="nc-footer__link"
-                  >
+                  <a href="https://www.nc.gov/privacy-policy" className="footer-link">
                     Privacy Policy
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="https://it.nc.gov/contact"
-                    className="nc-footer__link"
-                  >
+                  <a href="https://it.nc.gov/contact" className="footer-link">
                     Contact NCDIT
                   </a>
                 </li>
@@ -74,17 +58,13 @@ export default function NCFooter() {
             </nav>
           </div>
 
-          {/* Social + Contact Column */}
-          <div className="col-md-4">
-            <h2 className="nc-footer__heading">Connect</h2>
-            {/* Social media icons — placeholder for future integration */}
-            <div
-              className="nc-footer__social d-flex gap-3 mb-3"
-              aria-label="Social media links"
-            >
+          {/* Social + Connect Column */}
+          <div>
+            <h2 className="footer-heading">Connect</h2>
+            <div className="footer-social" aria-label="Social media links">
               <a
                 href="https://twitter.com/NCDITgov"
-                className="nc-footer__social-link"
+                className="footer-social-link"
                 aria-label="NCDIT on Twitter"
                 rel="noopener noreferrer"
               >
@@ -92,7 +72,7 @@ export default function NCFooter() {
               </a>
               <a
                 href="https://www.facebook.com/ncaboret"
-                className="nc-footer__social-link"
+                className="footer-social-link"
                 aria-label="North Carolina on Facebook"
                 rel="noopener noreferrer"
               >
@@ -100,7 +80,7 @@ export default function NCFooter() {
               </a>
               <a
                 href="https://www.youtube.com/@NCDITgov"
-                className="nc-footer__social-link"
+                className="footer-social-link"
                 aria-label="NCDIT on YouTube"
                 rel="noopener noreferrer"
               >
@@ -110,77 +90,125 @@ export default function NCFooter() {
           </div>
         </div>
 
-        {/* Copyright Bar */}
-        <div className="nc-footer__copyright border-top border-secondary pt-3 mt-4">
-          <p className="mb-0 text-center" style={{ fontSize: '0.8125rem' }}>
-            © {currentYear} State of North Carolina. All rights reserved.
-          </p>
+        {/* Copyright */}
+        <div className="footer-copyright">
+          <p>© {currentYear} State of North Carolina. All rights reserved.</p>
         </div>
       </div>
 
       <style jsx>{`
-        .nc-footer {
-          background-color: var(--nc-navy, #003366);
-          color: var(--nc-white, #ffffff);
-          font-family: var(--nc-font-body, Georgia, serif);
+        .footer-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 2rem;
         }
-        .nc-footer__logo {
-          font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
+
+        @media (max-width: 767.98px) {
+          .footer-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+          }
+        }
+
+        .footer-brand {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .footer-logo-row {
+          display: flex;
+          align-items: baseline;
+          margin-bottom: 0.5rem;
+        }
+
+        .footer-logo {
+          font-family: var(--font-heading);
           font-size: 1.5rem;
-          font-weight: bold;
-          color: var(--nc-white, #ffffff);
+          font-weight: 800;
+          color: var(--text-primary);
         }
-        .nc-footer__logo-accent {
-          font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
+
+        .footer-logo-accent {
+          font-family: var(--font-heading);
           font-size: 1.5rem;
-          color: rgba(255, 255, 255, 0.7);
+          font-weight: 400;
+          color: var(--accent-sky);
         }
-        .nc-footer__tagline {
+
+        .footer-tagline {
           font-size: 0.875rem;
-          color: rgba(255, 255, 255, 0.8);
+          color: var(--text-muted);
+          margin-bottom: 0;
         }
-        .nc-footer__heading {
-          font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
-          font-size: 0.9375rem;
-          font-weight: bold;
-          color: var(--nc-white, #ffffff);
+
+        .footer-heading {
+          font-family: var(--font-heading);
+          font-size: 0.75rem;
+          font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.1em;
+          color: var(--text-muted);
           margin-bottom: 0.75rem;
         }
-        .nc-footer__link {
-          color: rgba(255, 255, 255, 0.85);
+
+        .footer-links {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+        }
+
+        .footer-link {
+          color: var(--text-secondary);
           text-decoration: none;
           font-size: 0.9375rem;
           display: inline-block;
-          padding: 0.25rem 0;
-          transition: color var(--nc-transition-fast, 150ms ease-in-out);
+          padding: 0.2rem 0;
+          transition: color var(--transition-fast);
         }
-        .nc-footer__link:hover,
-        .nc-footer__link:focus {
-          color: var(--nc-white, #ffffff);
-          text-decoration: underline;
+
+        .footer-link:hover,
+        .footer-link:focus {
+          color: var(--accent-sky);
         }
-        .nc-footer__social-link {
+
+        .footer-social {
+          display: flex;
+          gap: 0.75rem;
+        }
+
+        .footer-social-link {
           display: flex;
           align-items: center;
           justify-content: center;
           width: 2.25rem;
           height: 2.25rem;
           border-radius: 50%;
-          background: rgba(255, 255, 255, 0.15);
-          color: var(--nc-white, #ffffff);
+          background: var(--surface);
+          border: 1px solid var(--border);
+          color: var(--text-secondary);
           text-decoration: none;
-          font-size: 1rem;
-          transition: background-color var(--nc-transition-fast, 150ms ease-in-out);
+          font-size: 0.9rem;
+          transition: all var(--transition-fast);
         }
-        .nc-footer__social-link:hover,
-        .nc-footer__social-link:focus {
-          background: rgba(255, 255, 255, 0.3);
-          color: var(--nc-white, #ffffff);
+
+        .footer-social-link:hover,
+        .footer-social-link:focus {
+          background: var(--surface-hover);
+          color: var(--accent-sky);
+          border-color: var(--border-hover);
         }
-        .nc-footer__copyright {
-          border-color: rgba(255, 255, 255, 0.2) !important;
+
+        .footer-copyright {
+          border-top: 1px solid var(--border);
+          padding-top: 1rem;
+          margin-top: 2rem;
+          text-align: center;
+        }
+
+        .footer-copyright p {
+          font-size: 0.8125rem;
+          color: var(--text-muted);
+          margin: 0;
         }
       `}</style>
     </footer>

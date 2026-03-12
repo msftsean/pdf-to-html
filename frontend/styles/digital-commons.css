@@ -1,49 +1,188 @@
 /* ==========================================================================
    NCDIT Digital Commons Design Tokens
    North Carolina Department of Information Technology
-   "First in Flight" Design System
+   "First in Flight" Design System — Runbook Edition
+   
+   Dark theme default. Light theme via [data-theme="light"].
    ========================================================================== */
 
 :root {
-  /* NCDIT Digital Commons Color Palette */
+  /* ---- Dark Theme (default — matches operations runbook) ---- */
+  --deep-bg: #0a1628;
+  --card-bg: #0f2340;
+  --surface: #162d50;
+  --surface-hover: #1a3560;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  --overlay: rgba(10, 22, 40, 0.85);
+
+  /* ---- NC Brand Colors ---- */
+  --nc-brand: #003366;
   --nc-navy: #003366;
   --nc-navy-dark: #002244;
   --nc-action-blue: #1e79c8;
   --nc-action-blue-hover: #1a6ab3;
+
+  /* ---- Accent Colors (shared both themes) ---- */
+  --accent-sky: #38bdf8;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+  --accent-orange: #fb923c;
+
+  /* ---- Semantic Status Colors ---- */
+  --status-success: var(--accent-emerald);
+  --status-warning: var(--accent-amber);
+  --status-danger: var(--accent-red);
+  --status-info: var(--accent-sky);
+  --status-processing: var(--accent-sky);
+  --status-pending: var(--text-muted);
+
+  /* ---- Typography ----
+     next/font/google injects --font-heading, --font-body, --font-mono
+     as CSS variables on <html>. The fallbacks below ensure text renders
+     correctly if the variables haven't loaded yet.
+     ---- */
+  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Literata', Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  /* ---- Spacing Scale ---- */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  /* ---- Border Radius ---- */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* ---- Shadows ---- */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.4);
+  --shadow-glow-sky: 0 0 20px rgba(56, 189, 248, 0.15);
+  --shadow-glow-emerald: 0 0 20px rgba(16, 185, 129, 0.15);
+
+  /* ---- Transitions ---- */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 400ms ease;
+
+  /* ---- Theme transition for smooth switching ---- */
+  --theme-transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+
+  /* Legacy aliases for compatibility */
+  --nc-font-heading: var(--font-heading);
+  --nc-font-body: var(--font-body);
+  --nc-font-mono: var(--font-mono);
   --nc-white: #ffffff;
-  --nc-light-gray: #f5f5f5;
-  --nc-medium-gray: #6c757d;
-  --nc-dark-gray: #333333;
-  --nc-border-gray: #dee2e6;
-  --nc-success: #28a745;
-  --nc-warning: #ffc107;
-  --nc-danger: #dc3545;
-  --nc-info: #17a2b8;
+  --nc-light-gray: var(--surface);
+  --nc-medium-gray: var(--text-secondary);
+  --nc-dark-gray: var(--text-primary);
+  --nc-border-gray: var(--border);
+  --nc-success: var(--accent-emerald);
+  --nc-warning: var(--accent-amber);
+  --nc-danger: var(--accent-red);
+  --nc-info: var(--accent-sky);
+  --nc-radius-sm: var(--radius-sm);
+  --nc-radius-md: var(--radius-md);
+  --nc-radius-lg: var(--radius-lg);
+  --nc-shadow-sm: var(--shadow-sm);
+  --nc-shadow-md: var(--shadow-md);
+  --nc-shadow-lg: var(--shadow-lg);
+  --nc-transition-fast: var(--transition-fast);
+  --nc-transition-normal: var(--transition-normal);
+  --nc-spacing-xs: var(--space-xs);
+  --nc-spacing-sm: var(--space-sm);
+  --nc-spacing-md: var(--space-md);
+  --nc-spacing-lg: var(--space-lg);
+  --nc-spacing-xl: var(--space-xl);
+  --nc-spacing-xxl: var(--space-2xl);
+}
 
-  /* Typography — Brandon Grotesque Bold / Century Gothic Bold for headings */
-  --nc-font-heading: 'Century Gothic', 'CenturyGothic', 'AppleGothic', sans-serif;
-  --nc-font-body: Georgia, 'Times New Roman', serif;
-  --nc-font-mono: 'Courier New', monospace;
+/* ---- Light Theme ---- */
+[data-theme="light"] {
+  --deep-bg: #f8fafc;
+  --card-bg: #ffffff;
+  --surface: #f1f5f9;
+  --surface-hover: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.15);
+  --overlay: rgba(248, 250, 252, 0.85);
 
-  /* Spacing Scale */
-  --nc-spacing-xs: 0.25rem;
-  --nc-spacing-sm: 0.5rem;
-  --nc-spacing-md: 1rem;
-  --nc-spacing-lg: 1.5rem;
-  --nc-spacing-xl: 2rem;
-  --nc-spacing-xxl: 3rem;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.12);
+  --shadow-glow-sky: 0 0 20px rgba(56, 189, 248, 0.1);
+  --shadow-glow-emerald: 0 0 20px rgba(16, 185, 129, 0.1);
 
-  /* Border Radius */
-  --nc-radius-sm: 0.25rem;
-  --nc-radius-md: 0.375rem;
-  --nc-radius-lg: 0.5rem;
+  /* Light theme legacy aliases */
+  --nc-white: #ffffff;
+  --nc-light-gray: var(--surface);
+  --nc-medium-gray: var(--text-secondary);
+  --nc-dark-gray: var(--text-primary);
+  --nc-border-gray: var(--border);
+}
 
-  /* Shadows */
-  --nc-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --nc-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
-  --nc-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+/* ==========================================================================
+   Animations / Keyframes
+   ========================================================================== */
 
-  /* Transitions */
-  --nc-transition-fast: 150ms ease-in-out;
-  --nc-transition-normal: 250ms ease-in-out;
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes progressStripe {
+  0% { background-position: 1rem 0; }
+  100% { background-position: 0 0; }
 }

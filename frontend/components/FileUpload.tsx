@@ -7,7 +7,6 @@ import { uploadDocument, type UploadProgress } from '@/services/uploadService';
 // Types
 // ---------------------------------------------------------------------------
 
-/** Allowed MIME types and their user-friendly labels */
 const ACCEPTED_TYPES: Record<string, string> = {
   'application/pdf': 'PDF',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
@@ -16,10 +15,7 @@ const ACCEPTED_TYPES: Record<string, string> = {
     'PowerPoint (.pptx)',
 };
 
-/** Accept attribute for the file input */
 const ACCEPT_ATTR = '.pdf,.docx,.pptx';
-
-/** Maximum file size in bytes (100 MB) */
 const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
 type FileStatus = 'pending' | 'uploading' | 'complete' | 'error';
@@ -28,7 +24,7 @@ interface TrackedFile {
   id: string;
   file: File;
   status: FileStatus;
-  progress: number; // 0–100
+  progress: number;
   documentId?: string;
   errorMessage?: string;
 }
@@ -46,14 +42,10 @@ function formatFileSize(bytes: number): string {
 function fileIcon(name: string): string {
   const ext = name.split('.').pop()?.toLowerCase();
   switch (ext) {
-    case 'pdf':
-      return '📄';
-    case 'docx':
-      return '📝';
-    case 'pptx':
-      return '📊';
-    default:
-      return '📁';
+    case 'pdf': return '📄';
+    case 'docx': return '📝';
+    case 'pptx': return '📊';
+    default: return '📁';
   }
 }
 
@@ -64,14 +56,14 @@ let fileIdCounter = 0;
 // ---------------------------------------------------------------------------
 
 /**
- * FileUpload — Drag-and-drop file upload with NCDIT Digital Commons styling.
+ * FileUpload — Drag-and-drop file upload with runbook aesthetics.
  *
  * Accessibility:
  * - Drop zone is keyboard-focusable (tabindex="0")
  * - Enter / Space triggers the hidden file input
  * - Screen reader announcements via aria-live region
  * - Error messages use role="alert"
- * - Progress bars have aria-valuenow/aria-valuemin/aria-valuemax
+ * - Progress bars have ARIA attributes
  */
 export default function FileUpload() {
   const [files, setFiles] = useState<TrackedFile[]>([]);
@@ -116,7 +108,6 @@ export default function FileUpload() {
 
   const uploadSingleFile = useCallback(
     async (tracked: TrackedFile) => {
-      // Mark as uploading
       setFiles((prev) =>
         prev.map((f) =>
           f.id === tracked.id ? { ...f, status: 'uploading' as FileStatus } : f
@@ -141,12 +132,7 @@ export default function FileUpload() {
         setFiles((prev) =>
           prev.map((f) =>
             f.id === tracked.id
-              ? {
-                  ...f,
-                  status: 'complete' as FileStatus,
-                  progress: 100,
-                  documentId,
-                }
+              ? { ...f, status: 'complete' as FileStatus, progress: 100, documentId }
               : f
           )
         );
@@ -157,34 +143,25 @@ export default function FileUpload() {
             ? err.message
             : 'An unexpected error occurred. Please try again.';
 
-        // Friendly error mapping
         let friendlyMessage = message;
         if (
           message.includes('network error') ||
           message.includes('Failed to fetch') ||
           message.includes('ERR_CONNECTION_REFUSED')
         ) {
-          friendlyMessage =
-            'Cannot reach the conversion service. Please try again shortly.';
+          friendlyMessage = 'Cannot reach the conversion service. Please try again shortly.';
         } else if (message.includes('Failed to request upload token')) {
-          friendlyMessage =
-            'Could not authorize upload — the service may be unavailable. Please try again.';
+          friendlyMessage = 'Could not authorize upload — the service may be unavailable. Please try again.';
         } else if (message.includes('status 403')) {
-          friendlyMessage =
-            'Upload authorization expired. Please try uploading again.';
+          friendlyMessage = 'Upload authorization expired. Please try uploading again.';
         } else if (message.includes('timed out')) {
-          friendlyMessage =
-            'Upload timed out. Please try again with a better connection.';
+          friendlyMessage = 'Upload timed out. Please try again with a better connection.';
         }
 
         setFiles((prev) =>
           prev.map((f) =>
             f.id === tracked.id
-              ? {
-                  ...f,
-                  status: 'error' as FileStatus,
-                  errorMessage: friendlyMessage,
-                }
+              ? { ...f, status: 'error' as FileStatus, errorMessage: friendlyMessage }
               : f
           )
         );
@@ -203,7 +180,6 @@ export default function FileUpload() {
       const fileArray = Array.from(incoming);
       const { valid, errors } = validateFiles(fileArray);
 
-      // Clear old validation errors when new valid files arrive
       if (valid.length > 0) {
         setValidationErrors(errors);
       } else {
@@ -220,20 +196,17 @@ export default function FileUpload() {
       }));
 
       setFiles((prev) => [...prev, ...tracked]);
-
-      // Announce to screen readers
       setAnnouncement(
         `${valid.length} file${valid.length > 1 ? 's' : ''} added. Starting upload.`
       );
 
-      // Start uploads
       tracked.forEach((t) => uploadSingleFile(t));
     },
     [validateFiles, uploadSingleFile]
   );
 
   // -----------------------------------------------------------------------
-  // Drag & Drop handlers
+  // Drag & Drop
   // -----------------------------------------------------------------------
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -275,7 +248,7 @@ export default function FileUpload() {
   );
 
   // -----------------------------------------------------------------------
-  // Click / Keyboard handlers
+  // Click / Keyboard
   // -----------------------------------------------------------------------
 
   const openFilePicker = useCallback(() => {
@@ -296,7 +269,6 @@ export default function FileUpload() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files.length > 0) {
         handleFiles(e.target.files);
-        // Reset input so same file can be re-uploaded
         e.target.value = '';
       }
     },
@@ -304,7 +276,7 @@ export default function FileUpload() {
   );
 
   // -----------------------------------------------------------------------
-  // Retry handler
+  // Retry / Remove
   // -----------------------------------------------------------------------
 
   const retryUpload = useCallback(
@@ -324,10 +296,6 @@ export default function FileUpload() {
     [files, uploadSingleFile]
   );
 
-  // -----------------------------------------------------------------------
-  // Remove file from list
-  // -----------------------------------------------------------------------
-
   const removeFile = useCallback((id: string) => {
     setFiles((prev) => prev.filter((f) => f.id !== id));
   }, []);
@@ -338,14 +306,14 @@ export default function FileUpload() {
 
   return (
     <div className="file-upload">
-      {/* Screen reader announcement region */}
+      {/* Screen reader announcement */}
       <div className="visually-hidden" aria-live="polite" aria-atomic="true">
         {announcement}
       </div>
 
       {/* Drop zone */}
       <div
-        className={`file-upload__zone ${isDragOver ? 'file-upload__zone--active' : ''}`}
+        className={`upload-zone ${isDragOver ? 'upload-zone--active' : ''}`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -356,17 +324,13 @@ export default function FileUpload() {
         tabIndex={0}
         aria-label="Upload files. Drag and drop or press Enter to browse. Accepted formats: PDF, DOCX, PPTX. Maximum 100 MB per file."
       >
-        <div className="file-upload__zone-content">
-          <span className="file-upload__icon" aria-hidden="true">
-            ☁️
-          </span>
-          <p className="file-upload__title">
-            Drag &amp; drop files here
+        <div className="upload-zone__content">
+          <span className="upload-zone__icon" aria-hidden="true">☁️</span>
+          <p className="upload-zone__title">Drag &amp; drop files here</p>
+          <p className="upload-zone__subtitle">
+            or <span className="upload-zone__link">browse your computer</span>
           </p>
-          <p className="file-upload__subtitle">
-            or <span className="file-upload__browse-link">browse your computer</span>
-          </p>
-          <p className="file-upload__hint">
+          <p className="upload-zone__hint">
             PDF, Word (.docx), PowerPoint (.pptx) — up to 100 MB
           </p>
         </div>
@@ -386,57 +350,45 @@ export default function FileUpload() {
 
       {/* Validation errors */}
       {validationErrors.length > 0 && (
-        <div className="file-upload__errors mt-3" role="alert" aria-live="polite">
+        <div className="upload-errors" role="alert" aria-live="polite">
           {validationErrors.map((error, i) => (
-            <p key={i} className="file-upload__error mb-1">
-              {error}
-            </p>
+            <p key={i} className="upload-error-msg">{error}</p>
           ))}
         </div>
       )}
 
-      {/* File list with progress */}
+      {/* File list */}
       {files.length > 0 && (
-        <ul className="file-upload__list mt-3" aria-label="Uploaded files">
+        <ul className="upload-list" aria-label="Uploaded files">
           {files.map((tracked) => (
-            <li key={tracked.id} className="file-upload__item">
-              <div className="file-upload__item-header">
-                <span className="file-upload__file-icon" aria-hidden="true">
+            <li key={tracked.id} className="upload-item">
+              <div className="upload-item__header">
+                <span className="upload-item__icon" aria-hidden="true">
                   {fileIcon(tracked.file.name)}
                 </span>
-                <span className="file-upload__file-info">
-                  <span className="file-upload__file-name">
-                    {tracked.file.name}
-                  </span>
-                  <span className="file-upload__file-size">
-                    {formatFileSize(tracked.file.size)}
-                  </span>
+                <span className="upload-item__info">
+                  <span className="upload-item__name">{tracked.file.name}</span>
+                  <span className="upload-item__size">{formatFileSize(tracked.file.size)}</span>
                 </span>
-                <span className="file-upload__status-badge">
+                <span className="upload-item__badge">
                   {tracked.status === 'uploading' && (
-                    <span className="file-upload__status file-upload__status--uploading">
+                    <span className="upload-status upload-status--uploading">
                       Uploading {tracked.progress}%
                     </span>
                   )}
                   {tracked.status === 'complete' && (
-                    <span className="file-upload__status file-upload__status--complete">
-                      ✅ Complete
-                    </span>
+                    <span className="upload-status upload-status--complete">✅ Complete</span>
                   )}
                   {tracked.status === 'error' && (
-                    <span className="file-upload__status file-upload__status--error">
-                      ⚠️ Error
-                    </span>
+                    <span className="upload-status upload-status--error">⚠️ Error</span>
                   )}
                   {tracked.status === 'pending' && (
-                    <span className="file-upload__status file-upload__status--pending">
-                      Queued
-                    </span>
+                    <span className="upload-status upload-status--pending">Queued</span>
                   )}
                 </span>
                 <button
                   type="button"
-                  className="file-upload__remove btn-close btn-close-sm"
+                  className="btn-close btn-close-sm"
                   aria-label={`Remove ${tracked.file.name}`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -448,7 +400,7 @@ export default function FileUpload() {
               {/* Progress bar */}
               {(tracked.status === 'uploading' || tracked.status === 'pending') && (
                 <div
-                  className="progress file-upload__progress mt-2"
+                  className="progress upload-progress"
                   role="progressbar"
                   aria-valuenow={tracked.progress}
                   aria-valuemin={0}
@@ -456,30 +408,28 @@ export default function FileUpload() {
                   aria-label={`${tracked.file.name} upload progress`}
                 >
                   <div
-                    className="progress-bar file-upload__progress-bar"
+                    className="progress-bar"
                     style={{ width: `${tracked.progress}%` }}
                   />
                 </div>
               )}
 
-              {/* Completed indicator with document ID */}
+              {/* Completed — document ID */}
               {tracked.status === 'complete' && tracked.documentId && (
-                <p className="file-upload__doc-id mt-1 mb-0">
+                <p className="upload-doc-id">
                   <small>
                     Document ID: <code>{tracked.documentId}</code>
                   </small>
                 </p>
               )}
 
-              {/* Error message + retry */}
+              {/* Error + retry */}
               {tracked.status === 'error' && (
-                <div className="file-upload__error-detail mt-1">
-                  <p className="mb-1" role="alert">
-                    {tracked.errorMessage}
-                  </p>
+                <div className="upload-error-detail">
+                  <p className="mb-1" role="alert">{tracked.errorMessage}</p>
                   <button
                     type="button"
-                    className="btn btn-sm file-upload__retry-btn"
+                    className="btn btn-sm btn-outline-primary"
                     onClick={(e) => {
                       e.stopPropagation();
                       retryUpload(tracked.id);
@@ -495,225 +445,184 @@ export default function FileUpload() {
       )}
 
       <style jsx>{`
-        .file-upload__zone {
-          border: 2px dashed var(--nc-navy, #003366);
-          border-radius: var(--nc-radius-lg, 0.5rem);
-          padding: 2.5rem 1.5rem;
+        .upload-zone {
+          border: 2px dashed var(--border-hover);
+          border-radius: var(--radius-lg);
+          padding: 3rem 1.5rem;
           text-align: center;
           cursor: pointer;
-          transition:
-            border-color var(--nc-transition-normal, 250ms ease-in-out),
-            background-color var(--nc-transition-normal, 250ms ease-in-out),
-            box-shadow var(--nc-transition-normal, 250ms ease-in-out);
-          background-color: var(--nc-white, #ffffff);
+          transition: all var(--transition-normal);
+          background: var(--card-bg);
         }
 
-        .file-upload__zone:hover,
-        .file-upload__zone:focus-visible {
-          border-color: var(--nc-action-blue, #1e79c8);
-          background-color: rgba(30, 121, 200, 0.04);
-          box-shadow: 0 0 0 3px rgba(30, 121, 200, 0.15);
+        .upload-zone:hover,
+        .upload-zone:focus-visible {
+          border-color: var(--accent-sky);
+          background: rgba(56, 189, 248, 0.04);
+          box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
         }
 
-        .file-upload__zone--active {
-          border-color: var(--nc-action-blue, #1e79c8);
-          background-color: rgba(30, 121, 200, 0.08);
+        .upload-zone--active {
+          border-color: var(--accent-sky);
+          background: rgba(56, 189, 248, 0.08);
           border-style: solid;
-          box-shadow: 0 0 0 4px rgba(30, 121, 200, 0.25);
+          box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.15);
         }
 
-        .file-upload__icon {
+        .upload-zone__icon {
           font-size: 3rem;
           display: block;
           margin-bottom: 0.75rem;
         }
 
-        .file-upload__title {
-          font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
-          font-weight: bold;
+        .upload-zone__title {
+          font-family: var(--font-heading);
+          font-weight: 700;
           font-size: 1.25rem;
-          color: var(--nc-navy, #003366);
+          color: var(--text-primary);
           margin-bottom: 0.25rem;
         }
 
-        .file-upload__subtitle {
-          font-family: var(--nc-font-body, Georgia, serif);
-          color: var(--nc-medium-gray, #6c757d);
+        .upload-zone__subtitle {
+          font-family: var(--font-body);
+          color: var(--text-secondary);
           margin-bottom: 0.5rem;
         }
 
-        .file-upload__browse-link {
-          color: var(--nc-action-blue, #1e79c8);
+        .upload-zone__link {
+          color: var(--accent-sky);
           text-decoration: underline;
           font-weight: 600;
         }
 
-        .file-upload__hint {
-          font-family: var(--nc-font-body, Georgia, serif);
+        .upload-zone__hint {
+          font-family: var(--font-body);
           font-size: 0.85rem;
-          color: var(--nc-medium-gray, #6c757d);
+          color: var(--text-muted);
           margin-bottom: 0;
         }
 
         /* Validation errors */
-        .file-upload__error {
-          font-family: var(--nc-font-body, Georgia, serif);
-          color: var(--nc-danger, #dc3545);
+        .upload-errors {
+          margin-top: 1rem;
+        }
+
+        .upload-error-msg {
+          font-family: var(--font-body);
+          color: var(--accent-red);
           font-size: 0.9rem;
           padding: 0.5rem 0.75rem;
-          background-color: #fdf0f0;
-          border-left: 3px solid var(--nc-danger, #dc3545);
-          border-radius: var(--nc-radius-sm, 0.25rem);
+          background: rgba(239, 68, 68, 0.08);
+          border-left: 3px solid var(--accent-red);
+          border-radius: var(--radius-sm);
+          margin-bottom: 0.5rem;
         }
 
         /* File list */
-        .file-upload__list {
+        .upload-list {
           list-style: none;
           padding: 0;
-          margin: 0;
+          margin: 1rem 0 0;
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
         }
 
-        .file-upload__item {
+        .upload-item {
           padding: 0.75rem 1rem;
-          border: 1px solid var(--nc-border-gray, #dee2e6);
-          border-radius: var(--nc-radius-md, 0.375rem);
-          margin-bottom: 0.5rem;
-          background-color: var(--nc-white, #ffffff);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          background: var(--card-bg);
+          transition: border-color var(--transition-fast);
         }
 
-        .file-upload__item-header {
+        .upload-item:hover {
+          border-color: var(--border-hover);
+        }
+
+        .upload-item__header {
           display: flex;
           align-items: center;
           gap: 0.75rem;
         }
 
-        .file-upload__file-icon {
+        .upload-item__icon {
           font-size: 1.5rem;
           flex-shrink: 0;
         }
 
-        .file-upload__file-info {
+        .upload-item__info {
           flex: 1;
           min-width: 0;
         }
 
-        .file-upload__file-name {
+        .upload-item__name {
           display: block;
-          font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
+          font-family: var(--font-heading);
           font-weight: 600;
           font-size: 0.95rem;
-          color: var(--nc-navy, #003366);
+          color: var(--text-primary);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
         }
 
-        .file-upload__file-size {
+        .upload-item__size {
           display: block;
-          font-family: var(--nc-font-body, Georgia, serif);
+          font-family: var(--font-body);
           font-size: 0.8rem;
-          color: var(--nc-medium-gray, #6c757d);
+          color: var(--text-muted);
         }
 
-        .file-upload__status {
-          font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
+        .upload-status {
+          font-family: var(--font-heading);
           font-size: 0.8rem;
           font-weight: 600;
           white-space: nowrap;
         }
 
-        .file-upload__status--uploading {
-          color: var(--nc-action-blue, #1e79c8);
-        }
+        .upload-status--uploading { color: var(--accent-sky); }
+        .upload-status--complete { color: var(--accent-emerald); }
+        .upload-status--error { color: var(--accent-red); }
+        .upload-status--pending { color: var(--text-muted); }
 
-        .file-upload__status--complete {
-          color: var(--nc-success, #28a745);
-        }
-
-        .file-upload__status--error {
-          color: var(--nc-danger, #dc3545);
-        }
-
-        .file-upload__status--pending {
-          color: var(--nc-medium-gray, #6c757d);
-        }
-
-        .file-upload__remove {
-          flex-shrink: 0;
-        }
-
-        /* Progress bar */
-        .file-upload__progress {
+        .upload-progress {
+          margin-top: 0.5rem;
           height: 6px;
-          border-radius: 3px;
-          background-color: var(--nc-light-gray, #f5f5f5);
-          overflow: hidden;
         }
 
-        .file-upload__progress-bar {
-          background-color: var(--nc-action-blue, #1e79c8);
-          transition: width 200ms ease;
-          border-radius: 3px;
-        }
-
-        /* Document ID */
-        .file-upload__doc-id {
-          font-family: var(--nc-font-body, Georgia, serif);
+        .upload-doc-id {
+          margin: 0.25rem 0 0;
           font-size: 0.8rem;
-          color: var(--nc-medium-gray, #6c757d);
+          color: var(--text-muted);
         }
 
-        .file-upload__doc-id code {
-          font-family: var(--nc-font-mono, 'Courier New', monospace);
-          background-color: var(--nc-light-gray, #f5f5f5);
-          padding: 0.125rem 0.375rem;
-          border-radius: var(--nc-radius-sm, 0.25rem);
-          font-size: 0.8rem;
-        }
-
-        /* Error detail */
-        .file-upload__error-detail {
-          font-family: var(--nc-font-body, Georgia, serif);
+        .upload-error-detail {
+          margin-top: 0.5rem;
+          font-family: var(--font-body);
           font-size: 0.85rem;
-          color: var(--nc-danger, #dc3545);
+          color: var(--accent-red);
         }
 
-        .file-upload__retry-btn {
-          font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: var(--nc-action-blue, #1e79c8);
-          border: 1px solid var(--nc-action-blue, #1e79c8);
-          background: transparent;
-          border-radius: var(--nc-radius-sm, 0.25rem);
-          padding: 0.2rem 0.75rem;
-        }
-
-        .file-upload__retry-btn:hover {
-          background-color: var(--nc-action-blue, #1e79c8);
-          color: var(--nc-white, #ffffff);
-        }
-
-        /* Responsive */
         @media (max-width: 575.98px) {
-          .file-upload__zone {
-            padding: 1.5rem 1rem;
+          .upload-zone {
+            padding: 2rem 1rem;
           }
 
-          .file-upload__icon {
+          .upload-zone__icon {
             font-size: 2rem;
           }
 
-          .file-upload__title {
+          .upload-zone__title {
             font-size: 1.1rem;
           }
 
-          .file-upload__item-header {
+          .upload-item__header {
             flex-wrap: wrap;
             gap: 0.5rem;
           }
 
-          .file-upload__status-badge {
+          .upload-item__badge {
             order: 4;
             width: 100%;
           }
