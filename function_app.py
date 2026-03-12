@@ -74,6 +74,9 @@ def file_upload(myblob: func.InputStream):
         if ext == ".docx":
             from docx_extractor import extract_docx
             pages, metadata = extract_docx(file_data)
+        elif ext == ".pptx":
+            from pptx_extractor import extract_pptx
+            pages, metadata = extract_pptx(file_data)
         else:
             pages, metadata = extract_pdf(file_data)
         logger.info("Extracted %d pages. Metadata: %s", len(pages), metadata.get("title", "N/A"))
@@ -82,7 +85,7 @@ def file_upload(myblob: func.InputStream):
         scanned_pages = [p.page_number for p in pages if p.is_scanned]
         ocr_results = {}
 
-        if scanned_pages and ext != ".docx":
+        if scanned_pages and ext not in (".docx", ".pptx"):
             logger.info("Sending %d scanned page(s) to Document Intelligence for OCR", len(scanned_pages))
             try:
                 ocr_results = ocr_pdf_pages(pdf_data=file_data, page_numbers=scanned_pages)

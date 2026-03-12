@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react';
 import type { DocumentStatus } from '@/services/statusService';
+import DownloadButton from '@/components/DownloadButton';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -12,6 +13,8 @@ export interface ProgressTrackerProps {
   documents: DocumentStatus[];
   /** Callback fired when the user clicks the retry button on a failed doc. */
   onRetry?: (documentId: string) => void;
+  /** Callback fired when the user clicks the preview button on a completed doc. */
+  onPreview?: (doc: DocumentStatus) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -114,6 +117,7 @@ function formatTimestamp(iso: string): string {
 export default function ProgressTracker({
   documents,
   onRetry,
+  onPreview,
 }: ProgressTrackerProps) {
   const handleRetry = useCallback(
     (documentId: string) => {
@@ -253,6 +257,37 @@ export default function ProgressTracker({
                         </span>
                       )}
                     </small>
+
+                    {/* Preview & Download actions — T063 */}
+                    <div
+                      className="progress-tracker__actions d-flex align-items-center gap-2 mt-2 flex-wrap"
+                      data-testid={`actions-${doc.document_id}`}
+                    >
+                      {onPreview && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-primary progress-tracker__preview-btn"
+                          onClick={() => onPreview(doc)}
+                          aria-label={`Preview converted output of ${doc.name}`}
+                          data-testid={`preview-btn-${doc.document_id}`}
+                        >
+                          <span aria-hidden="true" className="me-1">👁️</span>
+                          Preview
+                        </button>
+                      )}
+                      <DownloadButton
+                        documentId={doc.document_id}
+                        documentName={doc.name}
+                        format="html"
+                        variant="primary"
+                      />
+                      <DownloadButton
+                        documentId={doc.document_id}
+                        documentName={doc.name}
+                        format="zip"
+                        variant="outline"
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -315,6 +350,19 @@ export default function ProgressTracker({
         .progress-tracker__retry-btn:hover,
         .progress-tracker__retry-btn:focus-visible {
           background-color: var(--nc-danger, #dc3545);
+          color: var(--nc-white, #ffffff);
+        }
+        .progress-tracker__preview-btn {
+          font-family: var(--nc-font-heading, 'Century Gothic', sans-serif);
+          font-size: 0.8125rem;
+          font-weight: 600;
+          border-color: var(--nc-action-blue, #1e79c8);
+          color: var(--nc-action-blue, #1e79c8);
+        }
+        .progress-tracker__preview-btn:hover,
+        .progress-tracker__preview-btn:focus-visible {
+          background-color: var(--nc-action-blue, #1e79c8);
+          border-color: var(--nc-action-blue, #1e79c8);
           color: var(--nc-white, #ffffff);
         }
         .min-w-0 {

@@ -3,12 +3,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import ProgressTracker from '@/components/ProgressTracker';
+import DocumentPreview from '@/components/DocumentPreview';
 import {
   startPolling,
   type StatusResponse,
   type StatusSummary,
   type DocumentStatus,
 } from '@/services/statusService';
+import { getDownloadUrl } from '@/services/downloadService';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -75,6 +77,12 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [isPolling, setIsPolling] = useState(true);
   const stopPollingRef = useRef<(() => void) | null>(null);
+
+  // Preview modal state (T063)
+  const [previewDoc, setPreviewDoc] = useState<DocumentStatus | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   // -----------------------------------------------------------------------
   // Polling lifecycle (T052)
@@ -143,6 +151,35 @@ export default function DashboardPage() {
   const handleManualRefresh = useCallback(() => {
     setIsPolling(true);
     setError(null);
+  }, []);
+
+  // -----------------------------------------------------------------------
+  // Preview handler (T063)
+  // -----------------------------------------------------------------------
+
+  const handlePreview = useCallback(async (doc: DocumentStatus) => {
+    setPreviewDoc(doc);
+    setPreviewLoading(true);
+    setPreviewError(null);
+    setPreviewUrl(null);
+
+    try {
+      const { download_url } = await getDownloadUrl(doc.document_id);
+      setPreviewUrl(download_url);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to load preview URL.';
+      setPreviewError(message);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, []);
+
+  const handleClosePreview = useCallback(() => {
+    setPreviewDoc(null);
+    setPreviewUrl(null);
+    setPreviewError(null);
+    setPreviewLoading(false);
   }, []);
 
   // -----------------------------------------------------------------------
@@ -327,7 +364,72 @@ export default function DashboardPage() {
             Document Progress List
             ---------------------------------------------------------------- */}
         {!isLoading && (
-          <ProgressTracker documents={documents} onRetry={handleRetry} />
+          <ProgressTracker
+            documents={documents}
+            onRetry={handleRetry}
+            onPreview={handlePreview}
+          />
+        )}
+
+        {/* ----------------------------------------------------------------
+            Preview Panel (T063)
+            ---------------------------------------------------------------- */}
+        {previewDoc && (
+          <div
+            className="dashboard-preview-overlay"
+            data-testid="preview-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Preview of ${previewDoc.name}`}
+          >
+            <div className="dashboard-preview-panel">
+              {previewLoading && (
+                <div
+                  className="text-center py-5"
+                  data-testid="preview-panel-loading"
+                  role="status"
+                >
+                  <div className="spinner-border text-primary mb-3" aria-hidden="true" />
+                  <p className="text-muted mb-0">Loading preview…</p>
+                </div>
+              )}
+
+              {previewError && (
+                <div
+                  className="alert alert-danger m-4"
+                  role="alert"
+                  data-testid="preview-panel-error"
+                >
+                  <p className="mb-2">{previewError}</p>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={() => handlePreview(previewDoc)}
+                  >
+                    🔄 Retry
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary ms-2"
+                    onClick={handleClosePreview}
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
+
+              {previewUrl && !previewLoading && !previewError && (
+                <DocumentPreview
+                  previewUrl={previewUrl}
+                  documentName={previewDoc.name}
+                  flaggedPages={
+                    previewDoc.has_review_flags ? previewDoc.review_pages : []
+                  }
+                  onClose={handleClosePreview}
+                />
+              )}
+            </div>
+          </div>
         )}
       </div>
 
@@ -395,6 +497,26 @@ export default function DashboardPage() {
         }
         .dashboard-summary-card--navy .dashboard-summary-card__label {
           color: rgba(255, 255, 255, 0.8);
+        }
+
+        .dashboard-preview-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 1050;
+          background-color: rgba(0, 0, 0, 0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 1rem;
+        }
+        .dashboard-preview-panel {
+          width: 100%;
+          max-width: 960px;
+          max-height: 90vh;
+          overflow-y: auto;
+          border-radius: var(--nc-radius-lg, 0.5rem);
+          background-color: var(--nc-white, #ffffff);
+          box-shadow: var(--nc-shadow-lg, 0 10px 30px rgba(0, 0, 0, 0.2));
         }
       `}</style>
     </>

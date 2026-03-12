@@ -26,6 +26,9 @@ from ocr_service import OcrPageResult, OcrTable, OcrTableCell
 logger = logging.getLogger(__name__)
 
 # Regex to detect bullet/list-item prefixes
+# Speaker notes font marker (matches pptx_extractor.SPEAKER_NOTES_FONT)
+_SPEAKER_NOTES_FONT = "SpeakerNotes"
+
 _BULLET_RE = re.compile(
     r'^\s*[\u2022\u2023\u25E6\u2043\u2219\u25AA\u25AB\u25CF\u25CB\u2013\u2014\u2010\u2011•·\-\*►▸▹◦◆◇○●■□]\s+'
     r'|^\s*\d{1,3}[.)\]]\s+'
@@ -310,12 +313,28 @@ def build_html(
     lang = (metadata.get("language") or "en")[:2].lower()
 
     image_files: dict[str, bytes] = {}
+    is_pptx = metadata.get("format") == "pptx"
     body_parts: list[str] = []
 
     for page in pages:
         page_num = page.page_number
+
+        # Determine section label (Slide N for PPTX, Page N otherwise)
+        if is_pptx:
+            slide_title = ""
+            for span in page.text_spans:
+                if span.font != _SPEAKER_NOTES_FONT and _heading_level(span):
+                    slide_title = span.text
+                    break
+            if slide_title:
+                section_label = f"Slide {page_num + 1}: {html.escape(slide_title)}"
+            else:
+                section_label = f"Slide {page_num + 1}"
+        else:
+            section_label = f"Page {page_num + 1}"
+
         body_parts.append(
-            f'<section aria-label="Page {page_num + 1}" '
+            f'<section aria-label="{section_label}" '
             f'class="pdf-page" role="region">'
         )
 
@@ -373,12 +392,18 @@ def build_html(
         else:
             # --- Digital page: use PyMuPDF text spans + tables ---
 
+            # Separate speaker notes from regular text spans
+            regular_spans = [s for s in page.text_spans
+                             if s.font != _SPEAKER_NOTES_FONT]
+            notes_spans = [s for s in page.text_spans
+                           if s.font == _SPEAKER_NOTES_FONT]
+
             # Render detected tables
             for table in page.tables:
                 body_parts.append(_render_pymupdf_table_html(table))
 
             # Render non-table text
-            blocks = _spans_to_semantic_blocks(page.text_spans)
+            blocks = _spans_to_semantic_blocks(regular_spans)
             i = 0
             while i < len(blocks):
                 block = blocks[i]
@@ -405,6 +430,22 @@ def build_html(
                         escaped = f"<em>{escaped}</em>"
                     body_parts.append(f"<p>{escaped}</p>")
                     i += 1
+
+            # Render speaker notes as accessible associated content
+            if notes_spans:
+                notes_text = " ".join(
+                    s.text.strip() for s in notes_spans if s.text.strip()
+                )
+                if notes_text:
+                    body_parts.append(
+                        f'<aside class="speaker-notes" role="note" '
+                        f'aria-label="Speaker notes">'
+                        f'<details>'
+                        f'<summary>Speaker Notes</summary>'
+                        f'<p>{html.escape(notes_text)}</p>'
+                        f'</details>'
+                        f'</aside>'
+                    )
 
         # --- Images for this page ---
         for idx, img in enumerate(page.images):
@@ -533,6 +574,21 @@ def build_html(
         }}
         .review-notice strong {{
             color: #664d03;
+        }}
+        /* Speaker notes — PPTX slide notes */
+        .speaker-notes {{
+            background-color: #f8f9fa;
+            border: 1px solid #767676;
+            border-radius: 4px;
+            padding: 0.5rem 1rem;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+            color: #1a1a1a;
+        }}
+        .speaker-notes summary {{
+            font-weight: bold;
+            cursor: pointer;
+            color: #1a1a1a;
         }}
     </style>
 </head>
