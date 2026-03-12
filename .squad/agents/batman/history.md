@@ -7,6 +7,16 @@
 
 ## Learnings
 
+### Document Classification Strategy (Future Architecture)
+- **Gap identified:** Current `_classify_page()` in pdf_extractor.py only detects scanned vs. text-based pages; it does NOT assess document suitability for HTML conversion
+- **User pain point:** Brochures, slide decks, forms, and visually-heavy layouts produce poor HTML output, but the pipeline offers no pre-conversion screening or user warnings
+- **Luke's signal:** PowerPoint PDFs and brochures were flagged as poor HTML candidates during stakeholder interviews
+- **Proposed solution:** Add optional pre-processing gate (Classification Engine) between blob upload and extraction that analyzes document type and returns suitability score (0–1.0)
+- **Implementation path:** Phase 1 = lightweight heuristics (text density, image ratio, page count); Phase 2 = collect labels; Phase 3 = train custom Azure AI Foundry model
+- **Design principle:** Classify but don't reject — always allow conversion; warning is informational only (preserves user autonomy)
+- **Storage:** Use existing blob metadata pattern to store classification results (document_type, suitability_score, warning_message)
+- **ADR location:** `.squad/decisions/inbox/batman-classification-engine.md`
+
 ### Documentation Standards
 - README must reflect reality: updated milestone table, user story completion status, accurate test counts (137 backend + 307 frontend = 444+), and comprehensive architecture diagram showing PDF/DOCX/PPTX pipelines
 - QUICKSTART validation confirmed all paths, prerequisites, and commands are accurate — no corrections needed
