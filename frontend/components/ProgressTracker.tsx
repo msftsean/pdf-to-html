@@ -218,7 +218,20 @@ export default function ProgressTracker({
                       {doc.processing_time_ms != null && (
                         <> in {(doc.processing_time_ms / 1000).toFixed(1)}s</>
                       )}
-                      {doc.has_review_flags && (
+                      {doc.has_review_flags && onPreview && (
+                        <button
+                          type="button"
+                          className="text-warning ms-2 btn btn-link btn-sm p-0"
+                          onClick={() => onPreview(doc)}
+                          aria-label={`Review ${doc.review_pages.length} flagged page${doc.review_pages.length !== 1 ? 's' : ''} of ${doc.name}`}
+                          data-testid={`review-flag-${doc.document_id}`}
+                          style={{ textDecoration: 'none' }}
+                        >
+                          ⚠️ {doc.review_pages.length} page
+                          {doc.review_pages.length !== 1 ? 's' : ''} flagged for review
+                        </button>
+                      )}
+                      {doc.has_review_flags && !onPreview && (
                         <span className="text-warning ms-2">
                           ⚠️ {doc.review_pages.length} page
                           {doc.review_pages.length !== 1 ? 's' : ''} flagged for review

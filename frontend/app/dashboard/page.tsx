@@ -172,6 +172,16 @@ export default function DashboardPage() {
     setPreviewLoading(false);
   }, []);
 
+  // Escape key closes preview overlay
+  useEffect(() => {
+    if (!previewDoc) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClosePreview();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [previewDoc, handleClosePreview]);
+
   // -----------------------------------------------------------------------
   // Announce helper (T010)
   // -----------------------------------------------------------------------

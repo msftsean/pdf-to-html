@@ -187,7 +187,6 @@ export default function DocumentPreview({
           title={`Preview of converted document: ${documentName}`}
           className={`preview-iframe ${state !== 'ready' ? 'preview-iframe--hidden' : ''}`}
           sandbox="allow-same-origin"
-          loading="lazy"
           onLoad={handleIframeLoad}
           onError={handleIframeError}
           data-testid="preview-iframe"
@@ -265,10 +264,8 @@ export default function DocumentPreview({
 
         .preview-iframe--hidden {
           position: absolute;
-          width: 1px;
-          height: 1px;
-          overflow: hidden;
-          clip: rect(0, 0, 0, 0);
+          opacity: 0;
+          pointer-events: none;
         }
       `}</style>
     </div>

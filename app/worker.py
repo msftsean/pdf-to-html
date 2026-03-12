@@ -371,15 +371,21 @@ class ConversionWorker:
 
             retry_blob_operation(_create_container)
 
-            # Derive output path from blob name
-            output_base = base_filename
+            # Derive output path: use original filename with datestamp
+            # e.g. "2026-03-12_Advice_for_Spec_Microsoft.txt" instead of UUID
+            original_fn = meta.get("original_filename", base_filename)
+            original_stem = original_fn
             for known_ext in (".pdf", ".docx", ".pptx"):
-                if output_base.lower().endswith(known_ext):
-                    output_base = output_base[: -len(known_ext)]
+                if original_stem.lower().endswith(known_ext):
+                    original_stem = original_stem[: -len(known_ext)]
                     break
+            datestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            output_base = f"{datestamp}_{original_stem}"
+            # Keep document_id as folder name for uniqueness
+            output_folder = document_id
 
             # Upload HTML (with retry)
-            html_blob_name = f"{output_base}/{output_base}.html"
+            html_blob_name = f"{output_folder}/{output_base}.html"
 
             def _upload_html():
                 output_client.upload_blob(
@@ -400,7 +406,7 @@ class ConversionWorker:
 
             # Upload extracted images (with retry for each)
             for img_filename, img_bytes in image_files.items():
-                img_blob_name = f"{output_base}/images/{img_filename}"
+                img_blob_name = f"{output_folder}/images/{img_filename}"
                 img_ext = img_filename.rsplit(".", 1)[-1].lower()
                 mime = {
                     "png": "image/png",
