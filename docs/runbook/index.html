@@ -1142,38 +1142,41 @@
       <h3>Prerequisites</h3>
       <ul>
         <li>Azure subscription with <strong>Contributor</strong> access</li>
-        <li>Azure CLI installed and authenticated</li>
-        <li>Python 3.12+, Node.js 20+</li>
-        <li>Azure Functions Core Tools v4</li>
+        <li>Azure CLI installed and authenticated (<code>az login</code>)</li>
+        <li>Docker (for local builds) or Azure Container Registry access</li>
+        <li>Resource group <code>rg-pdf-to-html</code> with Container Apps environment configured</li>
       </ul>
+
+      <h3>Architecture</h3>
+      <p>Three Container Apps share a single environment. The <strong>API</strong> and <strong>Worker</strong> use the same Docker image (different entrypoints). The <strong>Frontend</strong> has its own Next.js image.</p>
       
-      <h3>Backend Deployment</h3>
+      <h3>Build &amp; Deploy (CI/CD)</h3>
+      <p>Push to <code>main</code> triggers <code>.github/workflows/deploy-aca.yml</code>. It builds images via ACR Tasks and deploys all three apps automatically.</p>
       
       <div class="terminal">
         <div class="terminal-header">
-          <span class="terminal-title">Backend Setup</span>
+          <span class="terminal-title">Manual Deployment</span>
           <button class="copy-btn" onclick="copyCode(this, 'backend-deploy')">Copy</button>
         </div>
         <div class="terminal-body">
-          <pre id="backend-deploy"><code><span class="terminal-comment"># Login to Azure</span>
-<span class="terminal-prompt">$</span> az login
+          <pre id="backend-deploy"><code><span class="terminal-comment"># Build backend image via ACR</span>
+<span class="terminal-prompt">$</span> az acr build --registry crpdftohtml \
+  --image pdf-to-html-api:latest \
+  --file Dockerfile.backend .
 
-<span class="terminal-comment"># Create resource group</span>
-<span class="terminal-prompt">$</span> az group create --name rg-ncdit-wcag --location eastus2
+<span class="terminal-comment"># Deploy API container</span>
+<span class="terminal-prompt">$</span> az containerapp update --name ca-pdftohtml-api \
+  --resource-group rg-pdf-to-html \
+  --image crpdftohtml.azurecr.io/pdf-to-html-api:latest
 
-<span class="terminal-comment"># Create storage account</span>
-<span class="terminal-prompt">$</span> az storage account create --name ncditwcagstorage \
-  --resource-group rg-ncdit-wcag --sku Standard_LRS
+<span class="terminal-comment"># Deploy Worker container (same image, different command)</span>
+<span class="terminal-prompt">$</span> az containerapp update --name ca-pdftohtml-worker \
+  --resource-group rg-pdf-to-html \
+  --image crpdftohtml.azurecr.io/pdf-to-html-api:latest
 
-<span class="terminal-comment"># Create function app</span>
-<span class="terminal-prompt">$</span> az functionapp create --name ncdit-wcag-converter \
-  --resource-group rg-ncdit-wcag \
-  --storage-account ncditwcagstorage \
-  --runtime python --runtime-version 3.12 \
-  --functions-version 4 --os-type Linux
-
-<span class="terminal-comment"># Deploy</span>
-<span class="terminal-prompt">$</span> func azure functionapp publish ncdit-wcag-converter</code></pre>
+<span class="terminal-comment"># Deactivate old revisions</span>
+<span class="terminal-prompt">$</span> az containerapp revision list --name ca-pdftohtml-api \
+  --resource-group rg-pdf-to-html -o table</code></pre>
         </div>
       </div>
       
@@ -1181,24 +1184,38 @@
       
       <div class="terminal">
         <div class="terminal-header">
-          <span class="terminal-title">Frontend Setup</span>
+          <span class="terminal-title">Frontend Build &amp; Deploy</span>
           <button class="copy-btn" onclick="copyCode(this, 'frontend-deploy')">Copy</button>
         </div>
         <div class="terminal-body">
-          <pre id="frontend-deploy"><code><span class="terminal-prompt">$</span> cd frontend
-<span class="terminal-prompt">$</span> npm run build
+          <pre id="frontend-deploy"><code><span class="terminal-comment"># Get the API FQDN (needed at build time!)</span>
+<span class="terminal-prompt">$</span> API_FQDN=$(az containerapp show --name ca-pdftohtml-api \
+  --resource-group rg-pdf-to-html --query properties.configuration.ingress.fqdn -o tsv)
 
-<span class="terminal-comment"># Deploy to Azure Static Web Apps</span>
-<span class="terminal-prompt">$</span> az staticwebapp create --name ncdit-wcag-ui \
-  --resource-group rg-ncdit-wcag \
-  --source . --location eastus2</code></pre>
+<span class="terminal-comment"># Build frontend with BACKEND_URL baked in</span>
+<span class="terminal-prompt">$</span> az acr build --registry crpdftohtml \
+  --image pdf-to-html-frontend:latest \
+  --build-arg BACKEND_URL=https://$API_FQDN \
+  --file frontend/Dockerfile ./frontend
+
+<span class="terminal-comment"># Deploy frontend container</span>
+<span class="terminal-prompt">$</span> az containerapp update --name ca-pdftohtml-frontend \
+  --resource-group rg-pdf-to-html \
+  --image crpdftohtml.azurecr.io/pdf-to-html-frontend:latest</code></pre>
         </div>
       </div>
       
+      <div class="callout callout-warning">
+        <div class="callout-icon">⚠️</div>
+        <div class="callout-content">
+          <p><strong>Critical:</strong> The <code>BACKEND_URL</code> is baked into the frontend at <strong>build time</strong> (Next.js standalone mode). Runtime env vars have NO effect. Always pass <code>--build-arg BACKEND_URL=https://&lt;api-fqdn&gt;</code> during image build.</p>
+        </div>
+      </div>
+
       <div class="callout callout-success">
         <div class="callout-icon">✅</div>
         <div class="callout-content">
-          <p><strong>Deployment Complete:</strong> Verify the function app is running in Azure Portal → Function Apps → ncdit-wcag-converter → Functions. Check that the frontend is accessible at the Static Web App URL.</p>
+          <p><strong>Verify Deployment:</strong> Hit <code>https://ca-pdftohtml-api.../health</code> for the API, check the frontend loads, and upload a test PDF to confirm the worker is processing.</p>
         </div>
       </div>
     </section>
@@ -1208,7 +1225,7 @@
       <span class="section-label">Section 03</span>
       <h2>Configuration Reference</h2>
       
-      <p>All configuration values are stored as Application Settings in the Azure Function App. Set these via Azure Portal or Azure CLI.</p>
+      <p>Environment variables are set on each Container App via <code>az containerapp update --set-env-vars</code> or in the Bicep templates under <code>infra/modules/container-apps.bicep</code>.</p>
       
       <div class="table-wrapper">
         <table>
@@ -1222,46 +1239,58 @@
           </thead>
           <tbody>
             <tr>
-              <td><code>AzureWebJobsStorage</code></td>
+              <td><code>AZURE_STORAGE_CONNECTION_STRING</code></td>
               <td>✅</td>
-              <td>—</td>
-              <td>Azure Storage connection string</td>
+              <td><code>UseDevelopmentStorage=true</code></td>
+              <td>Azure Blob/Queue Storage connection string</td>
             </tr>
             <tr>
-              <td><code>AZURE_DI_ENDPOINT</code></td>
+              <td><code>DOCUMENT_INTELLIGENCE_ENDPOINT</code></td>
               <td>✅</td>
               <td>—</td>
-              <td>Document Intelligence endpoint URL</td>
+              <td>Azure Document Intelligence (OCR) endpoint URL</td>
             </tr>
             <tr>
-              <td><code>AZURE_DI_KEY</code></td>
+              <td><code>DOCUMENT_INTELLIGENCE_KEY</code></td>
               <td>✅</td>
               <td>—</td>
-              <td>Document Intelligence API key</td>
+              <td>API key for Document Intelligence</td>
             </tr>
             <tr>
-              <td><code>UPLOAD_CONTAINER</code></td>
+              <td><code>INPUT_CONTAINER</code></td>
               <td>❌</td>
               <td><code>files</code></td>
-              <td>Input blob container name</td>
+              <td>Blob container for uploaded documents</td>
             </tr>
             <tr>
               <td><code>OUTPUT_CONTAINER</code></td>
               <td>❌</td>
-              <td><code>output</code></td>
-              <td>Output blob container name</td>
+              <td><code>converted</code></td>
+              <td>Blob container for conversion results</td>
             </tr>
             <tr>
-              <td><code>FUNCTIONS_WORKER_RUNTIME</code></td>
-              <td>✅</td>
-              <td><code>python</code></td>
-              <td>Must be "python"</td>
-            </tr>
-            <tr>
-              <td><code>MAX_FILE_SIZE_MB</code></td>
+              <td><code>QUEUE_NAME</code></td>
               <td>❌</td>
-              <td><code>100</code></td>
-              <td>Maximum upload file size</td>
+              <td><code>conversion-jobs</code></td>
+              <td>Azure Storage Queue for conversion tasks</td>
+            </tr>
+            <tr>
+              <td><code>PORT</code></td>
+              <td>❌</td>
+              <td><code>8000</code></td>
+              <td>FastAPI server listen port</td>
+            </tr>
+            <tr>
+              <td><code>LOG_LEVEL</code></td>
+              <td>❌</td>
+              <td><code>INFO</code></td>
+              <td>Logging level (DEBUG, INFO, WARNING, ERROR)</td>
+            </tr>
+            <tr>
+              <td><code>ALLOWED_ORIGINS</code></td>
+              <td>❌</td>
+              <td>(frontend URL)</td>
+              <td>CORS allowed origins (comma-separated)</td>
             </tr>
           </tbody>
         </table>
@@ -1270,7 +1299,7 @@
       <div class="callout callout-warning">
         <div class="callout-icon">⚠️</div>
         <div class="callout-content">
-          <p><strong>Secrets Management:</strong> Never commit <code>AZURE_DI_KEY</code> or connection strings to source control. Use Azure Key Vault references for production deployments.</p>
+          <p><strong>Secrets Management:</strong> Never commit <code>DOCUMENT_INTELLIGENCE_KEY</code> or connection strings to source control. Set secrets via <code>az containerapp update --set-env-vars "KEY=secretref:key-name"</code> or Azure Key Vault references.</p>
         </div>
       </div>
     </section>
@@ -1280,7 +1309,7 @@
       <span class="section-label">Section 04</span>
       <h2>API Endpoints</h2>
       
-      <p>All API endpoints require a function key for authentication. Keys can be managed in Azure Portal → Function App → App Keys.</p>
+      <p>The FastAPI backend (<code>app/main.py</code>) exposes these endpoints. No auth keys required — access is controlled by Container Apps ingress configuration.</p>
       
       <div class="table-wrapper">
         <table>
@@ -1289,37 +1318,50 @@
               <th>Method</th>
               <th>Path</th>
               <th>Description</th>
-              <th>Auth</th>
             </tr>
           </thead>
           <tbody>
             <tr>
+              <td><code>GET</code></td>
+              <td><code>/health</code></td>
+              <td>Liveness probe — storage &amp; queue connectivity check</td>
+            </tr>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/ready</code></td>
+              <td>Readiness probe — returns 503 if storage unreachable</td>
+            </tr>
+            <tr>
               <td><code>POST</code></td>
               <td><code>/api/upload/sas-token</code></td>
-              <td>Generate SAS upload token</td>
-              <td>Function key</td>
+              <td>Generate SAS token for direct browser-to-blob upload</td>
             </tr>
             <tr>
               <td><code>GET</code></td>
               <td><code>/api/documents/status</code></td>
-              <td>Get document/batch status</td>
-              <td>Function key</td>
+              <td>Get status of all documents (or single with <code>?document_id=</code>)</td>
             </tr>
             <tr>
               <td><code>GET</code></td>
               <td><code>/api/documents/{id}/download</code></td>
-              <td>Get download URL</td>
-              <td>Function key</td>
+              <td>Get SAS-signed download URLs for converted HTML + assets</td>
             </tr>
             <tr>
-              <td>—</td>
-              <td>Blob trigger on <code>files/</code></td>
-              <td>Auto-processes uploaded documents</td>
-              <td>Storage events</td>
+              <td><code>DELETE</code></td>
+              <td><code>/api/documents/{id}</code></td>
+              <td>Delete a single document (input + output blobs)</td>
+            </tr>
+            <tr>
+              <td><code>DELETE</code></td>
+              <td><code>/api/documents</code></td>
+              <td>Bulk delete all documents</td>
             </tr>
           </tbody>
         </table>
       </div>
+
+      <h3>Processing Pipeline</h3>
+      <p>Conversion is <strong>asynchronous</strong> — the worker (<code>app/worker.py</code>) polls the <code>conversion-jobs</code> Storage Queue every 2 seconds. Event Grid fires on <code>BlobCreated</code> events in <code>files/</code> container (filtered by <code>contentLength &gt; 0</code>) and delivers to the queue.</p>
     </section>
     
     <!-- Operations & Monitoring -->
@@ -1329,41 +1371,52 @@
       
       <h3>Health Checks</h3>
       <ul>
-        <li><strong>Azure Functions:</strong> Azure Portal → Function App → Functions → Monitor</li>
-        <li><strong>Storage:</strong> Azure Portal → Storage Account → Monitoring → Metrics</li>
-        <li><strong>Frontend:</strong> Check deployment URL returns <code>200</code></li>
+        <li><strong>API liveness:</strong> <code>GET /health</code> — checks storage &amp; queue connectivity</li>
+        <li><strong>API readiness:</strong> <code>GET /ready</code> — returns 503 if storage unreachable</li>
+        <li><strong>Worker:</strong> Logs every 2s poll cycle — check container logs for heartbeat</li>
+        <li><strong>Frontend:</strong> Hit the frontend URL — should return 200</li>
       </ul>
       
       <h3>Key Metrics to Monitor</h3>
       <ul>
-        <li>Function execution count and duration</li>
-        <li>Blob storage operations (reads/writes)</li>
+        <li>Container restart count (API, Worker, Frontend)</li>
+        <li>Queue depth — messages in <code>conversion-jobs</code></li>
+        <li>Conversion duration — logged as <code>processing_time_ms</code> in blob metadata</li>
         <li>OCR API call count and latency</li>
-        <li>Error rate (failed conversions / total)</li>
-        <li>Queue depth (pending documents)</li>
+        <li>Error rate — documents with <code>status=failed</code></li>
+        <li>Pages flagged for review (<code>has_review_flags=true</code>)</li>
       </ul>
       
       <h3>Log Access</h3>
       
       <div class="terminal">
         <div class="terminal-header">
-          <span class="terminal-title">Log Streaming</span>
+          <span class="terminal-title">Container Logs</span>
           <button class="copy-btn" onclick="copyCode(this, 'log-access')">Copy</button>
         </div>
         <div class="terminal-body">
-          <pre id="log-access"><code><span class="terminal-comment"># Stream live function logs</span>
-<span class="terminal-prompt">$</span> func azure functionapp logstream ncdit-wcag-converter
+          <pre id="log-access"><code><span class="terminal-comment"># Stream API logs</span>
+<span class="terminal-prompt">$</span> az containerapp logs show --name ca-pdftohtml-api \
+  --resource-group rg-pdf-to-html --follow
 
-<span class="terminal-comment"># Query Application Insights (if configured)</span>
-<span class="terminal-prompt">$</span> az monitor app-insights query --app ncdit-wcag-insights \
-  --analytics-query "traces | where timestamp > ago(1h) | order by timestamp desc"</code></pre>
+<span class="terminal-comment"># Stream Worker logs (where conversion happens)</span>
+<span class="terminal-prompt">$</span> az containerapp logs show --name ca-pdftohtml-worker \
+  --resource-group rg-pdf-to-html --follow
+
+<span class="terminal-comment"># Get system-level logs for a container</span>
+<span class="terminal-prompt">$</span> az containerapp logs show --name ca-pdftohtml-worker \
+  --resource-group rg-pdf-to-html --type system
+
+<span class="terminal-comment"># Check queue depth (pending conversions)</span>
+<span class="terminal-prompt">$</span> az storage message peek --queue-name conversion-jobs \
+  --account-name stpdftohtml331ef3 --num-messages 32</code></pre>
         </div>
       </div>
       
       <div class="callout callout-info">
         <div class="callout-icon">ℹ️</div>
         <div class="callout-content">
-          <p><strong>Application Insights:</strong> Enable Application Insights in the Function App for advanced monitoring, distributed tracing, and custom telemetry. Configure alerts for high error rates or latency spikes.</p>
+          <p><strong>Tip:</strong> Azure SDK logging is suppressed in the worker (<code>logging.WARNING</code> level). App-level messages at INFO and above will appear. Set <code>LOG_LEVEL=DEBUG</code> for verbose output during troubleshooting.</p>
         </div>
       </div>
     </section>
@@ -1373,7 +1426,7 @@
       <span class="section-label section-label-warning">Section 06</span>
       <h2>Troubleshooting</h2>
       
-      <p>Common issues and their resolutions. Check logs and metrics first for additional context.</p>
+      <p>Common issues and their resolutions. Always check worker container logs first.</p>
       
       <div class="table-wrapper">
         <table>
@@ -1386,24 +1439,39 @@
           </thead>
           <tbody>
             <tr>
-              <td>Blob trigger not firing</td>
-              <td>Storage connection string wrong</td>
-              <td>Verify <code>AzureWebJobsStorage</code> in app settings</td>
+              <td>All conversions fail immediately</td>
+              <td>Code error in worker (e.g. NameError)</td>
+              <td>Check worker logs: <code>az containerapp logs show -n ca-pdftohtml-worker</code></td>
             </tr>
             <tr>
-              <td>OCR returns empty results</td>
-              <td>Document Intelligence quota exhausted</td>
-              <td>Check Azure portal for quota usage, upgrade tier</td>
+              <td>Documents stuck at "pending"</td>
+              <td>Event Grid subscription misconfigured or queue empty</td>
+              <td>Check Event Grid subscription exists, verify <code>conversion-jobs</code> queue has messages</td>
             </tr>
             <tr>
-              <td>WCAG violations in output</td>
-              <td>Heading hierarchy broken</td>
-              <td>Check <code>html_builder.py</code> heading enforcement</td>
+              <td>OCR returns empty / pages flagged for review</td>
+              <td><code>DOCUMENT_INTELLIGENCE_KEY</code> expired (401)</td>
+              <td>Regenerate key and update worker env var</td>
             </tr>
             <tr>
-              <td>Upload fails at 0%</td>
-              <td>SAS token expired or CORS misconfigured</td>
-              <td>Regenerate token, check CORS on storage</td>
+              <td>Preview returns 404</td>
+              <td>Output path mismatch — blob metadata missing <code>output_path</code></td>
+              <td>Check blob metadata in storage explorer; re-upload to trigger re-conversion</td>
+            </tr>
+            <tr>
+              <td>Download "failed to fetch" in browser</td>
+              <td>Blob storage CORS missing <code>GET</code> method</td>
+              <td>Update CORS: <code>az storage cors add ... --methods GET PUT OPTIONS HEAD</code></td>
+            </tr>
+            <tr>
+              <td>"Unable to reach the server" on frontend</td>
+              <td><code>BACKEND_URL</code> not set at build time</td>
+              <td>Rebuild frontend image with <code>--build-arg BACKEND_URL=https://&lt;api-fqdn&gt;</code></td>
+            </tr>
+            <tr>
+              <td>Upload fails / SAS token error</td>
+              <td>Storage CORS or SAS token expired</td>
+              <td>Check storage CORS allows <code>PUT</code> from frontend origin; verify SAS generation</td>
             </tr>
             <tr>
               <td>"Password-protected" error</td>
@@ -1411,14 +1479,9 @@
               <td>User must remove password before uploading</td>
             </tr>
             <tr>
-              <td>Conversion timeout (>5min)</td>
-              <td>Large scanned PDF, OCR slow</td>
-              <td>Check DI tier, consider S0 → S1 upgrade</td>
-            </tr>
-            <tr>
-              <td>Frontend build fails</td>
-              <td>Node version mismatch</td>
-              <td>Ensure Node.js 20+ installed</td>
+              <td>Worker container keeps restarting</td>
+              <td>Connection string wrong or missing</td>
+              <td>Verify <code>AZURE_STORAGE_CONNECTION_STRING</code> on worker container</td>
             </tr>
           </tbody>
         </table>
@@ -1432,21 +1495,25 @@
           <button class="copy-btn" onclick="copyCode(this, 'debug-cmds')">Copy</button>
         </div>
         <div class="terminal-body">
-          <pre id="debug-cmds"><code><span class="terminal-comment"># Check function app status</span>
-<span class="terminal-prompt">$</span> az functionapp show --name ncdit-wcag-converter \
-  --resource-group rg-ncdit-wcag --query state
+          <pre id="debug-cmds"><code><span class="terminal-comment"># Check container app status and revisions</span>
+<span class="terminal-prompt">$</span> az containerapp show --name ca-pdftohtml-api \
+  --resource-group rg-pdf-to-html --query "{status:properties.runningStatus, fqdn:properties.configuration.ingress.fqdn}"
 
-<span class="terminal-comment"># List function app settings</span>
-<span class="terminal-prompt">$</span> az functionapp config appsettings list \
-  --name ncdit-wcag-converter --resource-group rg-ncdit-wcag
+<span class="terminal-comment"># List active revisions</span>
+<span class="terminal-prompt">$</span> az containerapp revision list --name ca-pdftohtml-worker \
+  --resource-group rg-pdf-to-html -o table
 
-<span class="terminal-comment"># Test blob trigger manually</span>
-<span class="terminal-prompt">$</span> az storage blob upload --account-name ncditwcagstorage \
-  --container-name files --name test.pdf --file ./test.pdf
+<span class="terminal-comment"># Check env vars on a container</span>
+<span class="terminal-prompt">$</span> az containerapp show --name ca-pdftohtml-worker \
+  --resource-group rg-pdf-to-html \
+  --query "properties.template.containers[0].env" -o table
 
-<span class="terminal-comment"># Check storage account connectivity</span>
-<span class="terminal-prompt">$</span> az storage account show-connection-string \
-  --name ncditwcagstorage --resource-group rg-ncdit-wcag</code></pre>
+<span class="terminal-comment"># Test API health endpoint</span>
+<span class="terminal-prompt">$</span> curl -s https://ca-pdftohtml-api.blackplant-e84b1473.eastus.azurecontainerapps.io/health | python3 -m json.tool
+
+<span class="terminal-comment"># Check Event Grid subscription</span>
+<span class="terminal-prompt">$</span> az eventgrid event-subscription list \
+  --source-resource-id /subscriptions/&lt;sub&gt;/resourceGroups/rg-pdf-to-html/providers/Microsoft.Storage/storageAccounts/stpdftohtml331ef3</code></pre>
         </div>
       </div>
     </section>
@@ -1460,10 +1527,10 @@
       
       <h4>P1 — Critical (Service Down)</h4>
       <ol>
-        <li>Check Azure Functions health in portal</li>
-        <li>Check storage account connectivity</li>
-        <li>Review last deployment (rollback if needed): <code>func azure functionapp publish --slot staging</code></li>
-        <li>Escalate to Azure support if infrastructure issue</li>
+        <li>Check container status: <code>az containerapp show --name ca-pdftohtml-api -g rg-pdf-to-html --query properties.runningStatus</code></li>
+        <li>Check container logs for crash loops or OOM kills</li>
+        <li>Rollback to previous revision: <code>az containerapp revision activate --revision &lt;prev-revision&gt;</code></li>
+        <li>If storage issue, check connection string and storage account health</li>
       </ol>
       
       <div class="callout callout-critical">
@@ -1475,17 +1542,17 @@
       
       <h4>P2 — High (Degraded Performance)</h4>
       <ol>
-        <li>Check function execution duration metrics</li>
-        <li>Review OCR API latency</li>
-        <li>Check for throttling (429 responses)</li>
-        <li>Scale up Function App plan if needed</li>
+        <li>Check worker log for processing delays or OCR timeouts</li>
+        <li>Check queue depth — if messages are piling up, worker may be stuck</li>
+        <li>Restart worker: <code>az containerapp revision restart --name ca-pdftohtml-worker -g rg-pdf-to-html --revision &lt;revision&gt;</code></li>
+        <li>Scale up if needed: update Container Apps min/max replicas in Bicep</li>
       </ol>
       
       <h4>P3 — Medium (Individual Failures)</h4>
       <ol>
-        <li>Check document-specific error in blob metadata</li>
-        <li>Retry failed document: re-upload to trigger reprocessing</li>
-        <li>Check if document is corrupted or password-protected</li>
+        <li>Check document-specific error in blob metadata (<code>error_message</code> field)</li>
+        <li>Use the Retry button in the dashboard to re-upload and re-trigger conversion</li>
+        <li>Check if document is corrupted, password-protected, or unsupported format</li>
       </ol>
       
       <h3>Escalation Contacts</h3>
@@ -1526,14 +1593,14 @@
       
       <h3>Compliance Overview</h3>
       <ul>
-        <li><strong>WCAG 2.1 AA Compliance:</strong> All HTML output validated against 7 rules</li>
+        <li><strong>WCAG 2.1 AA Compliance:</strong> All HTML output validated against 7 server-side checks</li>
         <li><strong>File Validation:</strong> Only PDF, DOCX, PPTX accepted (max 100MB)</li>
         <li><strong>Encrypted Documents:</strong> Automatically rejected with user-friendly error</li>
         <li><strong>SAS Tokens:</strong> Short-lived (1 hour), scoped to specific blob</li>
-        <li><strong>No PII in Logs:</strong> Document content never logged</li>
-        <li><strong>Key Rotation:</strong> Rotate DI keys quarterly via Azure Portal</li>
-        <li><strong>Access Control:</strong> Function keys for API, Azure RBAC for resources</li>
-        <li><strong>Data Residency:</strong> All processing in Azure East US 2</li>
+        <li><strong>No PII in Logs:</strong> Document content never logged; Azure SDK logging suppressed</li>
+        <li><strong>Container Security:</strong> Non-root user (<code>appuser:1001</code>) in all containers</li>
+        <li><strong>Access Control:</strong> Container Apps ingress controls, no function keys</li>
+        <li><strong>Data Residency:</strong> All processing in Azure East US</li>
       </ul>
       
       <h3>Key Rotation Procedure</h3>
@@ -1546,14 +1613,13 @@
         <div class="terminal-body">
           <pre id="key-rotation"><code><span class="terminal-comment"># Rotate Document Intelligence keys</span>
 <span class="terminal-prompt">$</span> az cognitiveservices account keys regenerate \
-  --name ncdit-doc-intelligence \
-  --resource-group rg-ncdit-wcag --key-name key1
+  --name &lt;doc-intelligence-name&gt; \
+  --resource-group rg-pdf-to-html --key-name key1
 
-<span class="terminal-comment"># Update function app setting</span>
-<span class="terminal-prompt">$</span> az functionapp config appsettings set \
-  --name ncdit-wcag-converter \
-  --resource-group rg-ncdit-wcag \
-  --settings "AZURE_DI_KEY=&lt;new-key&gt;"</code></pre>
+<span class="terminal-comment"># Update worker container env var</span>
+<span class="terminal-prompt">$</span> az containerapp update --name ca-pdftohtml-worker \
+  --resource-group rg-pdf-to-html \
+  --set-env-vars "DOCUMENT_INTELLIGENCE_KEY=&lt;new-key&gt;"</code></pre>
         </div>
       </div>
       
