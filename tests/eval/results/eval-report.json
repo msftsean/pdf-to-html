@@ -1,0 +1,89 @@
+{
+  "timestamp": "2026-03-12T00:51:12.407761+00:00",
+  "samples_dir": "/workspaces/pdf-to-html/tests/eval/samples",
+  "documents": [
+    {
+      "filename": "complex-tables.pdf",
+      "page_count": 2,
+      "conversion_time_ms": 128,
+      "violations": {
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0
+      },
+      "scores": {
+        "heading_hierarchy": 100.0,
+        "table_accessibility": 100.0,
+        "image_alt_coverage": 100.0
+      },
+      "result": "PASS",
+      "violation_details": [],
+      "error": null
+    },
+    {
+      "filename": "digital-report.pdf",
+      "page_count": 5,
+      "conversion_time_ms": 92,
+      "violations": {
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0
+      },
+      "scores": {
+        "heading_hierarchy": 100.0,
+        "table_accessibility": 100.0,
+        "image_alt_coverage": 100.0
+      },
+      "result": "PASS",
+      "violation_details": [],
+      "error": null
+    },
+    {
+      "filename": "image-heavy.pdf",
+      "page_count": 3,
+      "conversion_time_ms": 17,
+      "violations": {
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0
+      },
+      "scores": {
+        "heading_hierarchy": 100.0,
+        "table_accessibility": 100.0,
+        "image_alt_coverage": 100.0
+      },
+      "result": "PASS",
+      "violation_details": [],
+      "error": null
+    },
+    {
+      "filename": "simple-memo.pdf",
+      "page_count": 1,
+      "conversion_time_ms": 23,
+      "violations": {
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0
+      },
+      "scores": {
+        "heading_hierarchy": 100.0,
+        "table_accessibility": 100.0,
+        "image_alt_coverage": 100.0
+      },
+      "result": "PASS",
+      "violation_details": [],
+      "error": null
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "pass": 4,
+    "warn": 0,
+    "fail": 0,
+    "error": 0
+  }
+}

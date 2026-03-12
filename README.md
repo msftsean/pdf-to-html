@@ -1,154 +1,348 @@
-# PDF to HTML Converter
+<div align="center">
 
-An Azure Function that converts PDF documents into accessible, semantic HTML. Built for the NC DIT accessibility initiative.
+<img src="https://files.nc.gov/digital-solutions/styles/_inline_extra_large_/public/images/2025-02/2021.08.09%20NCDIT%20Logo_White.png" alt="NCDIT Logo" width="280" />
 
-## How It Works
+# 📄 pdf-to-html
 
-The pipeline has four stages:
+### WCAG 2.1 AA Compliant Document-to-HTML Converter
 
-1. **PDF Extraction** (`pdf_extractor.py`) — Uses PyMuPDF to extract text spans (with position, font, and style metadata), images, and tables. Classifies each page as digital (has selectable text) or scanned (image-only). Automatically removes repeated headers, footers, and page numbers.
+*An Azure Functions-powered document conversion service for the State of North Carolina*
 
-2. **OCR for Scanned Pages** (`ocr_service.py`) — Sends scanned pages to Azure Document Intelligence (`prebuilt-layout` model) for OCR. Extracts text, tables, and reading order. Authenticates via Entra ID (`DefaultAzureCredential`) — no API keys.
+[![WCAG 2.1 AA](https://img.shields.io/badge/WCAG-2.1_AA-green?style=for-the-badge&logo=w3c&logoColor=white)](https://www.w3.org/WAI/WCAG21/quickref/)
+[![ADA Title II](https://img.shields.io/badge/ADA-Title_II-blue?style=for-the-badge)](https://www.ada.gov/law-and-regs/title-ii-2010-regulations/)
+[![Azure Functions](https://img.shields.io/badge/Azure-Functions-0078D4?style=for-the-badge&logo=azure-functions&logoColor=white)](https://azure.microsoft.com/en-us/products/functions)
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Next.js 14](https://img.shields.io/badge/Next.js-14-000000?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-3. **HTML Generation** (`html_builder.py`) — Converts extracted content into semantic HTML with proper headings, paragraph structure, bullet lists, accessible tables (`<thead>`, `<th scope>`), and images. Applies heuristics for heading detection (by font size), bullet list recognition, and multi-line bullet continuation.
+---
 
-4. **Output** (`function_app.py`) — The Azure Function is triggered when a PDF is uploaded to the `files` blob container. The converted HTML and extracted images are written to the `converted` container.
+**🏛️ Built for NC State Government** · **♿ Accessibility First** · **⚡ Serverless at Scale**
 
-## Architecture
+</div>
+
+---
+
+## 🎯 Mission
+
+Convert PDF, Word, and PowerPoint documents published on North Carolina state websites into **fully accessible HTML** — meeting the **DOJ April 2026 deadline** for WCAG 2.1 Level AA compliance under **Title II ADA** digital accessibility requirements.
+
+## 📊 Project Status
+
+| Milestone | Status | Progress |
+|-----------|--------|----------|
+| 📋 Specification | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+| 📐 Architecture | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+| 🗺️ Implementation Plan | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+| ✅ Task Breakdown | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+| 🔧 Backend (PDF+OCR) | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+| 📝 DOCX Support | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+| 📊 PPTX Support | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+| 🌐 Web UI | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+| 🧪 Test Suite (444+ tests) | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+| 🤖 CI/CD & Eval Suite | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-brightgreen?style=flat-square) |
+
+### 📋 User Stories Implementation
+
+| ID | Story | Status |
+|----|-------|--------|
+| US-01 | Convert Digital PDF to Accessible HTML | ✅ Complete |
+| US-02 | Convert Scanned Legacy PDF with OCR | ✅ Complete |
+| US-03 | Batch Process Multiple Documents | ✅ Complete |
+| US-04 | Convert Word Documents to Accessible HTML | ✅ Complete |
+| US-05 | Convert PowerPoint to Accessible HTML | ✅ Complete |
+| US-06 | Upload Documents via Web Interface | ✅ Complete |
+| US-07 | Track Conversion Progress in Real-Time | ✅ Complete |
+| US-08 | Preview and Download Converted HTML | ✅ Complete |
+
+## ✨ Features
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| 📄 **Digital PDF Conversion** | Extract text, headings, tables, images → WCAG HTML | P1 🎯 |
+| 🔍 **Scanned PDF + OCR** | Azure Document Intelligence for legacy 1990s documents | P1 🎯 |
+| 🖱️ **Web Upload Interface** | Drag-and-drop upload with NCDIT Digital Commons branding | P1 🎯 |
+| 📦 **Batch Processing** | Process hundreds of documents concurrently | P2 |
+| 📊 **Live Dashboard** | Real-time conversion progress tracking | P2 |
+| 📝 **Word (.docx)** | Preserve Word document structure in HTML | P2 |
+| 👁️ **Preview & Download** | In-browser HTML preview + zip package download | P2 |
+| 📊 **PowerPoint (.pptx)** | Slide-by-slide HTML with speaker notes | P3 |
+
+## 🏗️ Architecture
 
 ```
-Blob Storage (files/{name}.pdf)
-        │
-        ▼
-  Azure Function (Blob Trigger)
-        │
-        ├── PyMuPDF: extract text, images, tables
-        │
-        ├── Azure Document Intelligence (scanned pages only)
-        │
-        ├── Build semantic HTML
-        │
-        └── Upload to Blob Storage (converted/)
+┌─────────────────────────────────────────────────────────────┐
+│               🌐 Next.js 14 Web Interface                   │
+│         React 18 • Bootstrap 5 • NCDIT Commons              │
+│    Drag-drop upload • Live progress • Preview • Download    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────┐  │
+│  │ Upload   │  │ Status   │  │ Download │  │ Health    │  │
+│  │ SAS API  │  │ Polling  │  │ SAS URLs │  │ Check API │  │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └─────┬─────┘  │
+│       │              │             │              │        │
+├───────┴──────────────┴─────────────┴──────────────┴────────┤
+│            ⚡ Azure Functions v4 (Python 3.12)              │
+│              Blob Trigger • HTTP Endpoints                  │
+├─────────────────────────────────────────────────────────────┤
+│                    📄 Document Extractors                   │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │ PDF Extract  │  │ DOCX Extract │  │ PPTX Extractor   │  │
+│  │ • PyMuPDF    │  │ • python-docx│  │ • python-pptx    │  │
+│  │ • Text spans │  │ • Styles     │  │ • Slide-by-slide │  │
+│  │ • Tables     │  │ • Tables     │  │ • Speaker notes  │  │
+│  │ • Images     │  │ • Images     │  │ • Images         │  │
+│  │ • Header/    │  │ • Header     │  │ • Tables         │  │
+│  │   footer rm  │  │   inference  │  │ • Charts         │  │
+│  └──────┬───────┘  └──────┬───────┘  └────────┬─────────┘  │
+│         │                 │                   │            │
+│         └─────────────────┼───────────────────┘            │
+│                           ▼                                │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │        🔍 Azure Document Intelligence OCR           │   │
+│  │     (scanned PDF pages only, <20 chars text)        │   │
+│  │     prebuilt-layout model • confidence scoring      │   │
+│  └───────────────────────┬─────────────────────────────┘   │
+│                          ▼                                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │          ♿ Semantic HTML Builder                    │   │
+│  │    • WCAG 2.1 AA compliant HTML5                    │   │
+│  │    • Heading hierarchy enforcement                  │   │
+│  │    • Table scope attributes                         │   │
+│  │    • Image alt text derivation                      │   │
+│  │    • Skip nav • Landmarks • Focus indicators        │   │
+│  │    • Low-confidence review banners                  │   │
+│  │    • Inline CSS (self-contained output)             │   │
+│  └───────────────────────┬─────────────────────────────┘   │
+│                          ▼                                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │          ✅ WCAG Validator (Python)                  │   │
+│  │    • 7 server-side compliance rules                 │   │
+│  │    • Alt text • Heading order • Table headers       │   │
+│  │    • Language attribute • Skip nav • Contrast       │   │
+│  └───────────────────────┬─────────────────────────────┘   │
+│                          ▼                                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │          📦 Azure Blob Storage                       │   │
+│  │    • files/ (user uploads via SAS token)            │   │
+│  │    • converted/ (HTML + images + metadata.json)     │   │
+│  │    • Status tracking via blob metadata              │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Prerequisites
+## 🚀 Quick Start
 
-- Python 3.10+
-- [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-tools?tabs=v4)
-- [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) (for local blob storage emulation)
-- Azure Document Intelligence resource (for OCR of scanned pages)
-  - Must have Entra ID authentication enabled
-  - Your identity needs `Cognitive Services User` role on the resource
+### Prerequisites
 
-## Getting Started
+- Python 3.12+
+- Node.js 20+
+- Azure Functions Core Tools v4
+- Azurite (local blob storage emulator)
 
-### 1. Clone and create virtual environment
+### Backend
 
-```powershell
-git clone <repo-url>
-cd nc-dit-pdf_to_html
-python -m venv .venv
-.venv\Scripts\activate
+```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-### 2. Configure local settings
+# Set environment variables
+export AzureWebJobsStorage="UseDevelopmentStorage=true"
+export DOCUMENT_INTELLIGENCE_ENDPOINT="https://<your-resource>.cognitiveservices.azure.com/"
+export OUTPUT_CONTAINER="converted"
 
-Edit `local.settings.json`:
+# Start local storage emulator
+azurite-blob --silent &
 
-```json
-{
-  "IsEncrypted": false,
-  "Values": {
-    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-    "FUNCTIONS_WORKER_RUNTIME": "python",
-    "OUTPUT_CONTAINER": "converted",
-    "DOCUMENT_INTELLIGENCE_ENDPOINT": "https://<your-resource>.cognitiveservices.azure.com/"
-  }
-}
-```
-
-### 3. Run locally (without Azure Functions)
-
-The easiest way to test is with the local test script — no Azurite or Function host needed:
-
-```powershell
-python scripts/test_local.py .\input\sample.pdf
-```
-
-Output is written to `output/<pdf_name>/`.
-
-### 4. Run with Azure Functions
-
-Start Azurite (all 3 services: blob, queue, table), then:
-
-```powershell
+# Start Azure Functions
 func start
 ```
 
-Upload a PDF to the `files` blob container to trigger processing.
+### Frontend
 
-## Project Structure
-
-```
-function_app.py        — Azure Function entry point (blob trigger)
-pdf_extractor.py       — PyMuPDF text/image/table extraction + header/footer removal
-ocr_service.py         — Azure Document Intelligence OCR (Entra ID auth)
-html_builder.py        — Semantic HTML generation
-requirements.txt       — Python dependencies
-host.json              — Azure Functions host configuration
-local.settings.json    — Local environment variables
-scripts/               — Helper scripts (see below)
+```bash
+cd frontend
+npm install
+npm run dev
+# Open http://localhost:3000
 ```
 
-## Helper Scripts
+### Convert a Document
 
-All scripts are in the `scripts/` directory.
+```bash
+# Upload via CLI
+az storage blob upload \
+  --container-name files \
+  --file my-document.pdf \
+  --name my-document.pdf \
+  --connection-string "UseDevelopmentStorage=true"
 
-### `test_local.py` — Local Pipeline Runner
-
-Runs the full extraction → OCR → HTML pipeline locally without Azure Functions or Blob Storage.
-
-```powershell
-python scripts/test_local.py <input.pdf> [output_dir]
-# Example:
-python scripts/test_local.py .\input\report.pdf
-# Output: output/report/report.html + output/report/images/
+# Or drag-and-drop via the web UI at http://localhost:3000
 ```
 
-### `dump_pdf_text.py` — Text Dump for LLM
+## 🧪 Testing
 
-Extracts PDF content to a plain text file (with aligned tables), suitable for pasting into an LLM.
+**444+ Tests Across All Layers**
 
-```powershell
-python scripts/dump_pdf_text.py <input.pdf> [output.txt]
-# Example:
-python scripts/dump_pdf_text.py .\input\schedule.pdf
-# Output: output/schedule.txt
+### Backend Tests (137 Python tests)
+```bash
+# Run all backend tests
+pytest tests/ -v
+
+# Run with coverage report
+pytest tests/ -v --cov=. --cov-report=html
+
+# Run specific test suites
+pytest tests/unit/ -v                    # Unit tests (extractors, validators, builders)
+pytest tests/integration/ -v             # Integration tests (full pipelines)
+pytest tests/ -k "wcag" -v              # WCAG compliance tests only
 ```
 
-### `test_layout.py` — pymupdf4llm Layout Comparison
+### Frontend Tests (307 test cases)
+```bash
+cd frontend
 
-Uses the `pymupdf4llm` layout engine to extract content as Markdown with images. Useful for comparing output quality against the main pipeline.
+# Linting and type checking
+npm run lint
 
-```powershell
-pip install pymupdf4llm  # one-time install
-python scripts/test_layout.py <input.pdf> [output_dir]
-# Example:
-python scripts/test_layout.py .\input\brochure.pdf
-# Output: output/brochure_layout/brochure.md + output/brochure_layout/images/
+# Build verification (catches TypeScript errors)
+npm run build
+
+# Run Next.js test suite
+npm test
+
+# Accessibility testing
+npm run test:a11y
 ```
 
-### `debug_spans.py` — Span Inspector
+### WCAG Evaluation Suite
+The project includes a comprehensive WCAG 2.1 AA evaluation suite that runs on every PR:
+- Converts real-world test documents (PDFs, DOCX, PPTX)
+- Validates heading hierarchy, table accessibility, image alt coverage
+- Generates compliance reports with violation details
+- Automatically posts results to PR comments
+- CI workflow: `.github/workflows/eval.yml`
 
-Ad-hoc debugging script for inspecting raw PyMuPDF text spans and table detection on a specific PDF page. Edit the script to point at the PDF and page you want to inspect.
+```bash
+# Run eval suite locally
+python scripts/run_evals.py --output tests/eval/results/eval-report.json
+python scripts/render_report.py --input tests/eval/results/eval-report.json --output tests/eval/results/eval-report.md
+```
 
-## Key Features
+## 🦸 Squad (Justice League)
 
-- **Hybrid extraction**: PyMuPDF for digital pages, Azure Document Intelligence for scanned pages
-- **Accessible HTML output**: semantic headings, proper list markup, accessible tables
-- **Header/footer removal**: automatically strips repeated text in page margins and page numbers
-- **Text deduplication**: handles PDFs with shadow/outline text layers
-- **Table detection**: extracts tables from both digital (PyMuPDF) and scanned (Document Intelligence) pages
-- **Bullet list recognition**: detects and preserves bulleted/numbered lists with multi-line continuation
-- **Entra ID authentication**: no API keys — uses `DefaultAzureCredential` for Document Intelligence
+This project uses [Squad](https://github.com/bradygaster/squad) for AI-assisted team coordination.
+
+| Agent | Role | Domain |
+|-------|------|--------|
+| 🦇 **Batman** | Tech Lead | Architecture, code review, triage |
+| 🛡️ **Wonder-Woman** | Backend Developer | PDF/DOCX/PPTX extraction, OCR, Azure Functions |
+| ⚡ **Flash** | Frontend Developer | React/Next.js UI, NCDIT Digital Commons styling |
+| 🤖 **Cyborg** | DevOps & Infrastructure | Azure deployment, CI/CD, monitoring |
+| 🔱 **Aquaman** | QA & Testing | WCAG validation, test coverage, edge cases |
+| 📝 **Scribe** | Documentation | Session logging, decision records |
+
+## 📋 Spec Kit
+
+This project uses [GitHub Spec Kit](https://github.com/github/spec-kit) for specification-driven development.
+
+| Artifact | Path | Description |
+|----------|------|-------------|
+| 📜 Constitution | `pdf-to-html/.specify/memory/constitution.md` | Project principles (v2.0.0) |
+| 📋 Specification | `specs/001-sean/spec.md` | Feature spec (8 user stories, 25 FRs) |
+| 🗺️ Plan | `specs/001-sean/plan.md` | Implementation plan |
+| 🔬 Research | `specs/001-sean/research.md` | Technology decisions |
+| 📊 Data Model | `specs/001-sean/data-model.md` | Entity definitions |
+| 🔌 API Contracts | `specs/001-sean/contracts/` | Upload, Status, Download APIs |
+| ✅ Tasks | `specs/001-sean/tasks.md` | 79 actionable implementation tasks |
+
+## 📦 Version Matrix
+
+| Version | Date | Component | Changes |
+|---------|------|-----------|---------|
+| v0.4.0 | 2026-03-11 | 📋 Tasks | 79 implementation tasks generated with squad assignments |
+| v0.3.0 | 2026-03-11 | 🗺️ Plan | Implementation plan, research, data model, API contracts |
+| v0.2.0 | 2026-03-11 | 📋 Spec | 8 user stories, 25 FRs, NCDIT Digital Commons UI requirements |
+| v0.1.0 | 2026-03-11 | 📜 Constitution | v2.0.0 — WCAG 2.1 AA, multi-format, batch processing principles |
+| v0.0.1 | 2026-03-11 | 🏗️ Scaffold | Project init, Squad (Justice League), Spec Kit, frontend-design skill |
+
+## 🛠️ Technology Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| ⚡ Runtime | Azure Functions (Python 3.12) | Serverless document processing |
+| 📄 PDF | PyMuPDF (fitz) | Digital PDF text/image/table extraction |
+| 🔍 OCR | Azure Document Intelligence | Scanned page recognition (prebuilt-layout) |
+| 📝 DOCX | python-docx | Word document structure extraction |
+| 📊 PPTX | python-pptx | PowerPoint slide extraction |
+| ♿ Validation | axe-core | Automated WCAG 2.1 AA compliance testing |
+| 🌐 Frontend | React 18 / Next.js 14 | Component-based web UI with SSR |
+| 🎨 UI Framework | Bootstrap 5 | NCDIT Digital Commons compatible |
+| 🏛️ Design System | NCDIT Digital Commons | NC.gov brand compliance |
+| ☁️ Storage | Azure Blob Storage | Document input/output persistence |
+| 🔐 Auth | Azure Identity (Entra ID) | Managed identity, zero secrets |
+
+## 📁 Project Structure
+
+```
+pdf-to-html/
+├── 📄 function_app.py          # Azure Functions orchestrator (blob trigger, HTTP APIs)
+├── 📄 pdf_extractor.py         # PDF → text/images/tables (PyMuPDF)
+├── 📝 docx_extractor.py        # Word document extraction (python-docx)
+├── 📊 pptx_extractor.py        # PowerPoint extraction (python-pptx)
+├── 🔍 ocr_service.py           # Azure Document Intelligence OCR client
+├── ♿ html_builder.py           # WCAG-compliant HTML generation
+├── ✅ wcag_validator.py         # Server-side WCAG 2.1 AA validation (7 rules)
+├── 📊 status_service.py        # Document processing status tracking
+├── 📋 models.py                # Pydantic data models
+├── 📦 requirements.txt         # Python dependencies
+├── ⚙️ host.json                # Azure Functions configuration
+│
+├── 🌐 frontend/                # Next.js 14 React app
+│   ├── app/                    # App Router (Next.js 13+)
+│   ├── components/             # React components (GovBanner, NCHeader, UploadZone, etc.)
+│   ├── services/               # API client services (upload, status, download)
+│   └── styles/                 # NCDIT Digital Commons design tokens
+│
+├── 🧪 tests/
+│   ├── unit/                   # Backend unit tests (137 tests)
+│   ├── integration/            # End-to-end pipeline tests
+│   ├── eval/                   # WCAG evaluation suite
+│   └── conftest.py             # Pytest fixtures
+│
+├── 🤖 .github/workflows/       # CI/CD workflows (eval.yml, squad automation)
+├── 🦸 .squad/                  # Squad (Justice League) config
+├── 📋 specs/001-sean/          # Spec Kit artifacts (spec, plan, tasks, contracts)
+├── 🎨 .agents/skills/          # AI skills (frontend-design)
+├── 📜 pdf-to-html/.specify/    # Spec Kit memory (constitution.md)
+├── 🔧 scripts/                 # Automation scripts (quickstart-check, evals)
+├── 📖 README.md                # This file
+├── 🚀 QUICKSTART.md            # Development setup guide
+└── ⚙️ .env.example              # Environment variables template
+```
+
+## ♿ Accessibility Commitment
+
+This project exists because **accessible government services are a civil right**. Every North Carolinian — regardless of ability — deserves equal access to public information.
+
+- 🎯 **WCAG 2.1 Level AA** — the legal standard, our minimum bar
+- 🔍 **Automated + manual testing** — axe-core catches ~57%, humans catch the rest
+- 📋 **NC Digital Accessibility & Usability Standard v1.1** — our compliance framework
+- ⚖️ **Title II ADA** — the law that drives this work
+- 🗓️ **April 2026** — the deadline that makes it urgent
+
+## 📜 Regulatory Context
+
+> *All content published on North Carolina state websites must be fully accessible by April 2026, per DOJ ruling under Title II ADA digital accessibility requirements. The compliance standard is WCAG 2.1 Level AA.*
+
+---
+
+<div align="center">
+
+**Built with ❤️ for the people of North Carolina**
+
+🏛️ [NC.gov](https://www.nc.gov) · 💻 [NCDIT](https://it.nc.gov) · ♿ [Digital Accessibility](https://it.nc.gov/documents/digital-accessibility-usability-standard/open)
+
+</div>

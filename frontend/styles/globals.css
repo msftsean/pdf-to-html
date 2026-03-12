@@ -1,0 +1,156 @@
+/* ==========================================================================
+   Global Styles — NCDIT Document Converter
+   Imports Bootstrap 5 + Digital Commons design tokens
+   ========================================================================== */
+
+@import 'bootstrap/dist/css/bootstrap.min.css';
+@import './digital-commons.css';
+
+/* --------------------------------------------------------------------------
+   Base Typography
+   -------------------------------------------------------------------------- */
+
+body {
+  font-family: var(--nc-font-body);
+  color: var(--nc-dark-gray);
+  line-height: 1.6;
+  background-color: var(--nc-white);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--nc-font-heading);
+  font-weight: bold;
+  color: var(--nc-navy);
+}
+
+/* --------------------------------------------------------------------------
+   Links
+   -------------------------------------------------------------------------- */
+
+a {
+  color: var(--nc-action-blue);
+  transition: color var(--nc-transition-fast);
+}
+
+a:hover {
+  color: var(--nc-action-blue-hover);
+}
+
+/* --------------------------------------------------------------------------
+   Focus Indicators — WCAG 2.1 AA Compliance
+   Visible focus ring on all interactive elements for keyboard navigation.
+   -------------------------------------------------------------------------- */
+
+:focus-visible {
+  outline: 3px solid var(--nc-action-blue);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   Skip Navigation Link — WCAG 2.1 AA
+   Hidden off-screen until focused, allows keyboard users to skip
+   repetitive navigation and jump straight to main content.
+   -------------------------------------------------------------------------- */
+
+.skip-nav {
+  position: absolute;
+  left: -9999px;
+  z-index: 999;
+  padding: 0.5rem 1rem;
+  background: var(--nc-navy);
+  color: var(--nc-white);
+  text-decoration: none;
+  font-family: var(--nc-font-heading);
+  font-size: 0.875rem;
+  border-radius: 0 0 var(--nc-radius-sm) 0;
+}
+
+.skip-nav:focus {
+  left: 0;
+  top: 0;
+  color: var(--nc-white);
+}
+
+/* --------------------------------------------------------------------------
+   Utility Classes
+   -------------------------------------------------------------------------- */
+
+.nc-text-navy { color: var(--nc-navy); }
+.nc-bg-navy { background-color: var(--nc-navy); }
+.nc-text-action { color: var(--nc-action-blue); }
+.nc-bg-light { background-color: var(--nc-light-gray); }
+
+/* --------------------------------------------------------------------------
+   Hero Section — Landing Page
+   -------------------------------------------------------------------------- */
+
+.nc-hero {
+  background: linear-gradient(
+    135deg,
+    var(--nc-navy) 0%,
+    var(--nc-navy-dark) 100%
+  );
+  color: var(--nc-white);
+}
+
+.nc-hero__title {
+  font-family: var(--nc-font-heading);
+  font-weight: bold;
+  font-size: 2.5rem;
+  color: var(--nc-white);
+  line-height: 1.15;
+}
+
+.nc-hero__subtitle {
+  font-family: var(--nc-font-body);
+  font-size: 1.125rem;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+}
+
+@media (max-width: 575.98px) {
+  .nc-hero__title {
+    font-size: 1.75rem;
+  }
+  .nc-hero__subtitle {
+    font-size: 1rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Supported Formats Card
+   -------------------------------------------------------------------------- */
+
+.nc-format-card__icon {
+  font-size: 2.5rem;
+  display: block;
+}
+
+/* --------------------------------------------------------------------------
+   How It Works Steps
+   -------------------------------------------------------------------------- */
+
+.nc-step {
+  position: relative;
+}
+
+.nc-step__number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background-color: var(--nc-navy);
+  color: var(--nc-white);
+  font-family: var(--nc-font-heading);
+  font-weight: bold;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.nc-step__icon {
+  display: block;
+  font-size: 2rem;
+  margin-top: 0.25rem;
+}

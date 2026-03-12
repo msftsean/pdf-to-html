@@ -1,0 +1,104 @@
+# WCAG Evaluation Report
+
+{% set has_critical = summary.fail > 0 or summary.error > 0 -%}
+{% if has_critical -%}
+**🔴 FAIL** — Critical WCAG violations detected
+{% elif summary.warn > 0 -%}
+**🟡 WARN** — Serious WCAG violations detected (no critical)
+{% else -%}
+**🟢 PASS** — All documents meet WCAG 2.1 AA compliance
+{% endif %}
+
+**Generated:** {{ timestamp }}
+**Samples directory:** `{{ samples_dir }}`
+
+---
+
+## Summary
+
+| Metric | Value |
+|--------|-------|
+| Total documents | {{ summary.total }} |
+| ✅ Pass | {{ summary.pass }} |
+| ⚠️ Warn | {{ summary.warn }} |
+| ❌ Fail | {{ summary.fail }} |
+| 💥 Error | {{ summary.error }} |
+
+---
+
+## Results by Document
+
+| Document | Pages | Time (ms) | Headings | Tables | Images | Critical | Serious | Moderate | Minor | Result |
+|----------|------:|----------:|---------:|-------:|-------:|---------:|--------:|---------:|------:|--------|
+{% for doc in documents -%}
+| {{ doc.filename }} | {{ doc.page_count }} | {{ doc.conversion_time_ms }} | {{ doc.scores.heading_hierarchy }}% | {{ doc.scores.table_accessibility }}% | {{ doc.scores.image_alt_coverage }}% | {{ doc.violations.critical }} | {{ doc.violations.serious }} | {{ doc.violations.moderate }} | {{ doc.violations.minor }} | {% if doc.result == "PASS" %}✅ PASS{% elif doc.result == "WARN" %}⚠️ WARN{% elif doc.result == "FAIL" %}❌ FAIL{% elif doc.result == "ERROR" %}💥 ERROR{% else %}{{ doc.result }}{% endif %} |
+{% endfor %}
+
+---
+
+## Source vs. Output Comparison
+
+| Document | Source Pages | Conversion Time | Violations Found | Compliance Score |
+|----------|------------:|-----------------|-----------------:|------------------|
+{% for doc in documents -%}
+| {{ doc.filename }} | {{ doc.page_count }} | {{ doc.conversion_time_ms }} ms | {{ doc.violations.critical + doc.violations.serious + doc.violations.moderate + doc.violations.minor }} | {% if doc.result == "PASS" %}✅ PASS{% elif doc.result == "WARN" %}⚠️ WARN{% elif doc.result == "FAIL" %}❌ FAIL{% else %}💥 ERROR{% endif %} |
+{% endfor %}
+
+---
+
+## WCAG Violation Details
+
+{% set all_violations = [] -%}
+{% for doc in documents -%}
+  {% for v in doc.violation_details -%}
+    {% set _ = all_violations.append({"doc": doc.filename, "rule_id": v.rule_id, "severity": v.severity, "description": v.description, "html_element": v.html_element, "help_url": v.help_url}) -%}
+  {% endfor -%}
+{% endfor -%}
+
+{% if all_violations -%}
+{% set rules = all_violations | map(attribute='rule_id') | unique | list -%}
+{% for rule in rules %}
+### `{{ rule }}`
+
+| Severity | Document | Description | Element |
+|----------|----------|-------------|---------|
+{% for v in all_violations if v.rule_id == rule -%}
+| {% if v.severity == "critical" %}🔴 critical{% elif v.severity == "serious" %}🟠 serious{% elif v.severity == "moderate" %}🟡 moderate{% else %}🔵 minor{% endif %} | {{ v.doc }} | {{ v.description }} | `{{ v.html_element | truncate(60) }}` |
+{% endfor -%}
+
+{% if all_violations | selectattr('rule_id', 'equalto', rule) | first -%}
+📚 [Deque rule reference]({{ (all_violations | selectattr('rule_id', 'equalto', rule) | first).help_url }})
+{% endif %}
+
+{% endfor -%}
+{% else -%}
+_No WCAG violations found. All documents are fully compliant._
+{% endif %}
+
+---
+
+## Per-Document Error Details
+
+{% set has_errors = documents | selectattr('error') | list | length > 0 -%}
+{% if has_errors -%}
+{% for doc in documents if doc.error -%}
+### {{ doc.filename }}
+
+```
+{{ doc.error }}
+```
+
+{% endfor -%}
+{% else -%}
+_No processing errors occurred._
+{% endif %}
+
+---
+
+<details>
+<summary>Raw JSON report path</summary>
+
+This report was generated from the eval harness JSON output.
+Re-run with: `python scripts/run_evals.py`
+
+</details>
