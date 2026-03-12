@@ -165,6 +165,13 @@
       font-weight: 700;
       color: var(--text-primary);
       letter-spacing: -0.01em;
+      text-decoration: none;
+    }
+
+    .header-logo:hover {
+      color: var(--text-primary);
+      text-decoration: none;
+      opacity: 0.85;
     }
     
     .header-nav {
@@ -993,7 +1000,7 @@
   <!-- Header -->
   <header class="header" role="banner">
     <div class="header-inner">
-      <div class="header-logo">WCAG Converter Runbook</div>
+      <a href="#" class="header-logo">WCAG Converter Runbook</a>
       <nav role="navigation" aria-label="Table of contents">
         <ul class="header-nav">
           <li><a href="#quickstart">Quick Start</a></li>
